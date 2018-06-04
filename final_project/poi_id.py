@@ -217,8 +217,9 @@ for indices_train, indices_test in sss.split(features, labels):
     predictions = clf.predict(testing_features)
     all_test_predictions.extend(list(predictions))
     all_test_labels.extend(list(testing_labels))
+
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-# print zip(predictions, testing_labels)
+print clf
 print "Accuracy:", accuracy_score(all_test_labels, all_test_predictions)
 print "Precision:", precision_score(all_test_labels, all_test_predictions)
 print "Recall:", recall_score(all_test_labels, all_test_predictions)

@@ -203,9 +203,13 @@ Results for LinearSVC really depend on the scaling. Seems like normal scaling gi
 
 Running experiments with `RFECV` against `tester.py` is a PITA. The evaluation in `poi_id.py` is very unstable. Need to change the latter so that it returns fast yet stable results.
 
+Cleaned the code (remove feature selection experiments, make outlier removal part of the pipeline).
+
+Use StratifiedShuffleSplit for more CV-ish evaluation in `poi_id.py` so that I get fast and stable results during development.
+
 #### Next steps (6)
 
-1. Clean the code (remove feature selection experiments, make outlier removal part of the pipeline).
-2. Use some more CV-ish evaluation in `poi_id.py` so that I get fast and stable results during development.
-
-### 2018-06-04 (2)
+1. Set up GridSearchCV to help with finding optimal algorithm and parameter settings.
+2. Add some more relative metrics for the financial data.
+3. Find good algo+params combo.
+4. PCA, new text features, ...
