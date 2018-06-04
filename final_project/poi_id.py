@@ -18,6 +18,7 @@ parser.add_argument(
     "--algorithm",
     choices=["naive_bayes", "decision_tree", "linear_svc"],
     default="naive_bayes")
+parser.add_argument("--remove-outliers", action="store_true")
 parser.add_argument(
     "--feature-scaling", choices=["normal", "robust"], default=None)
 parser.add_argument(
@@ -98,8 +99,7 @@ if scaler:
 # its bias on the data would be too strong).
 data_dict.pop("TOTAL", 0)
 
-# Remove outliers from the original data. Setting featureFormat()'s
-# `sort_keys` parameter to true will break this!
+# Setting featureFormat()'s `sort_keys` parameter to true will break this!
 data = featureFormat(
     data_dict,
     features_list,
@@ -108,23 +108,30 @@ data = featureFormat(
     remove_all_zeroes=False)  # need to keep these entries
 labels, features = targetFeatureSplit(data)
 
-# Use Local Outlier Factor LOF to detect ourliers. This is a nearest neighbor
-# based method: For each point, compute the density of its k (say 10) nearest
-# neighbors. Points with a the lowest 5% density are most likely outliers
-# (parameter `contamination`).
-from sklearn.neighbors import LocalOutlierFactor
-outlier_detector = LocalOutlierFactor(
-    n_neighbors=10, contamination=0.05, n_jobs=2)
-outlier_labels = outlier_detector.fit_predict(features)
-keys = np.array(data_dict.keys())
-# -1 marks outliers
-outlier_keys = keys[outlier_labels == -1]
-print "Removing {} outliers...".format(len(outlier_keys))
-for outlier in outlier_keys:
-    print " -> '{}' {}".format(outlier, ("who is POI"
-                                         if data_dict[outlier]["poi"] else ""))
-    data_dict.pop(outlier, 0)
-# TODO(Jonas): Include this into the pipeline.
+if args.remove_outliers:
+    # Remove outliers from the original data.
+
+    # Use Local Outlier Factor LOF to detect ourliers. This is a nearest neighbor
+    # based method: For each point, compute the density of its k (say 10) nearest
+    # neighbors. Points with a the lowest 5% density are most likely outliers
+    # (parameter `contamination`).
+    from sklearn.neighbors import LocalOutlierFactor
+    # TODO(Jonas): Check the alternative sklearn.svm.OneClassSVM
+    outlier_detector = LocalOutlierFactor(
+        n_neighbors=10, contamination=0.05, n_jobs=2)
+    outlier_labels = outlier_detector.fit_predict(features)
+    keys = np.array(data_dict.keys())
+    # -1 marks outliers
+    outlier_keys = keys[outlier_labels == -1]
+    print "Removing {} outliers...".format(len(outlier_keys))
+    for outlier in outlier_keys:
+        print " -> '{}' {}".format(outlier,
+                                   ("who is POI"
+                                    if data_dict[outlier]["poi"] else ""))
+        data_dict.pop(outlier, 0)
+    # NOTE(Jonas): Including this into the pipeline is not yet possible
+    # (without extending the API, which is beyond the scope of this project).
+    # Will try to use this reasonably, probably after adding the new features.
 
 # Task 3: Create new feature(s)
 from additional_features import EmailShares, PaymentsStockRatio
