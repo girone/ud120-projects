@@ -16,7 +16,7 @@ from tester import dump_classifier_and_data
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--algorithm",
-    choices=["naive_bayes", "linear_svc"],
+    choices=["naive_bayes", "decision_tree", "linear_svc"],
     default="naive_bayes")
 parser.add_argument(
     "--feature-scaling", choices=["normal", "robust"], default=None)
@@ -146,6 +146,9 @@ algorithm = args.algorithm
 if algorithm == "naive_bayes":
     from sklearn.naive_bayes import GaussianNB
     main_algorithm = GaussianNB()
+elif algorithm == "decision_tree":
+    from sklearn.tree import DecisionTreeClassifier
+    main_algorithm = DecisionTreeClassifier()
 elif algorithm == "linear_svc":
     from sklearn.svm import LinearSVC
     main_algorithm = LinearSVC()
