@@ -1,9 +1,11 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
 import numpy as np
+from math import isnan
 
 
 def get_without_NaN(data, person, key):
-    return float(data[person][key]) if data[person].has_key(key) else 0.
+    value = float(data[person][key]) if data[person].has_key(key) else 0.
+    return 0.0 if isnan(value) else value
 
 
 class NewFeature:
@@ -58,8 +60,8 @@ class PaymentsStockRatio(NewFeature):
             payments = get_without_NaN(data_dict, person, "total_payments")
             stock_value = get_without_NaN(data_dict, person,
                                           "total_stock_value")
-            data_dict[person][self.FEATURE_PAYMENT_STOCK_RATIO] = (
-                payments + 1) / (stock_value + 1)
+            ratio = (payments + 1) / (stock_value + 1)
+            data_dict[person][self.FEATURE_PAYMENT_STOCK_RATIO] = ratio
         return data_dict
 
     def new_feature_names(self):
