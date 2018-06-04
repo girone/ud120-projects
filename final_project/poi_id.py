@@ -15,7 +15,9 @@ from tester import dump_classifier_and_data
 # TODO(Jonas): Set reasonable defaults here when cleaning up. Whatever performs best.
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--algorithm", choices=["naive_bayes", "svm"], default="naive_bayes")
+    "--algorithm",
+    choices=["naive_bayes", "linear_svc"],
+    default="naive_bayes")
 parser.add_argument(
     "--feature-scaling", choices=["normal", "robust"], default=None)
 parser.add_argument(
@@ -153,10 +155,10 @@ labels, features = targetFeatureSplit(data)
 algorithm = args.algorithm
 if algorithm == "naive_bayes":
     from sklearn.naive_bayes import GaussianNB
-    clf = GaussianNB()
-elif algorithm == "svm":
+    main_algorithm = GaussianNB()
+elif algorithm == "linear_svc":
     from sklearn.svm import LinearSVC
-    clf = LinearSVC()
+    main_algorithm = LinearSVC()
 else:
     print "Unknown algorithm", algorithm
     exit(1)
