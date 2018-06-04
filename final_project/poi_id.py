@@ -202,19 +202,6 @@ from sklearn.model_selection import train_test_split
 features_train, features_test, labels_train, labels_test = \
     train_test_split(features, labels, test_size=0.3, random_state=42)
 
-# dev-test
-# feature_selector.fit(features_train, labels_train)
-# # print "Features and scores and example:", zip(
-# #     features_list[1:], feature_selector.scores_, features_test[0])
-# print "Features and ranking and example:", zip(
-#     features_list[1:], feature_selector.ranking_, features_test[0])
-
-# # print zip(features_list[1:], fesature_selector.pvalues_)
-# print "shape: ({}, {})".format(len(features_test), len(features_test[0]))
-# features_test = feature_selector.transform(features_test)
-# print "new shape:", features_test.shape
-# print "Reduced example:", features_test[0]
-
 clf.fit(features_train, labels_train)
 predictions = clf.predict(features_test)
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
