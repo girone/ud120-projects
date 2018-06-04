@@ -75,10 +75,6 @@ pipeline_steps = []
 with open("final_project_dataset.pkl", "r") as data_file:
     data_dict = pickle.load(data_file)
 
-# Remove summary entry "TOTAL" (moved here from outlier removal to decrease
-# its bias on feature scaling).
-data_dict.pop("TOTAL", 0)
-
 # Scale the features (with robustness too outliers, which we remove later on).
 from sklearn.preprocessing import StandardScaler, RobustScaler
 if not args.feature_scaling:
@@ -98,15 +94,19 @@ if scaler:
 
 # Task 2: Remove outliers
 
+# Remove summary entry "TOTAL" (done outside of pipeline processing because
+# its bias on the data would be too strong).
+data_dict.pop("TOTAL", 0)
+
 # Remove outliers from the original data. Setting featureFormat()'s
 # `sort_keys` parameter to true will break this!
-wip_data = featureFormat(
+data = featureFormat(
     data_dict,
     features_list,
     sort_keys=False,
     remove_NaN=True,
-    remove_all_zeroes=False)
-wip_labels, wip_features = targetFeatureSplit(wip_data)
+    remove_all_zeroes=False)  # need to keep these entries
+labels, features = targetFeatureSplit(data)
 
 # Use Local Outlier Factor LOF to detect ourliers. This is a nearest neighbor
 # based method: For each point, compute the density of its k (say 10) nearest
@@ -115,7 +115,7 @@ wip_labels, wip_features = targetFeatureSplit(wip_data)
 from sklearn.neighbors import LocalOutlierFactor
 outlier_detector = LocalOutlierFactor(
     n_neighbors=10, contamination=0.05, n_jobs=2)
-outlier_labels = outlier_detector.fit_predict(wip_features)
+outlier_labels = outlier_detector.fit_predict(features)
 keys = np.array(data_dict.keys())
 # -1 marks outliers
 outlier_keys = keys[outlier_labels == -1]
@@ -124,6 +124,7 @@ for outlier in outlier_keys:
     print " -> '{}' {}".format(outlier, ("who is POI"
                                          if data_dict[outlier]["poi"] else ""))
     data_dict.pop(outlier, 0)
+# TODO(Jonas): Include this into the pipeline.
 
 # Task 3: Create new feature(s)
 from additional_features import EmailShares, PaymentsStockRatio
@@ -133,10 +134,6 @@ for new_features in [EmailShares(), PaymentsStockRatio()]:
 
 # Store to my_dataset for easy export below.
 my_dataset = data_dict
-
-# Extract features and labels from dataset for local testing
-data = featureFormat(my_dataset, features_list, sort_keys=True)
-labels, features = targetFeatureSplit(data)
 
 # Task 4: Try a varity of classifiers
 # Please name your classifier clf for easy export below.
