@@ -198,18 +198,31 @@ clf = make_pipeline(*pipeline_steps)
 # http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.StratifiedShuffleSplit.html
 
 # Example starting point. Try investigating other evaluation techniques!
-from sklearn.model_selection import train_test_split
-features_train, features_test, labels_train, labels_test = \
-    train_test_split(features, labels, test_size=0.3, random_state=42)
-
-clf.fit(features_train, labels_train)
-predictions = clf.predict(features_test)
+from sklearn.model_selection import StratifiedShuffleSplit
+sss = StratifiedShuffleSplit(20, test_size=0.3, random_state=0)
+all_test_predictions = []
+all_test_labels = []
+for indices_train, indices_test in sss.split(features, labels):
+    training_features = []
+    testing_features = []
+    training_labels = []
+    testing_labels = []
+    for i in indices_train:
+        training_features.append(features[i])
+        training_labels.append(labels[i])
+    for i in indices_test:
+        testing_features.append(features[i])
+        testing_labels.append(labels[i])
+    clf.fit(training_features, training_labels)
+    predictions = clf.predict(testing_features)
+    all_test_predictions.extend(list(predictions))
+    all_test_labels.extend(list(testing_labels))
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-print zip(predictions, labels_test)
-print "Accuracy:", accuracy_score(labels_test, predictions)
-print "Precision:", precision_score(labels_test, predictions)
-print "Recall:", recall_score(labels_test, predictions)
-print "f1_score:", f1_score(labels_test, predictions)
+# print zip(predictions, testing_labels)
+print "Accuracy:", accuracy_score(all_test_labels, all_test_predictions)
+print "Precision:", precision_score(all_test_labels, all_test_predictions)
+print "Recall:", recall_score(all_test_labels, all_test_predictions)
+print "f1_score:", f1_score(all_test_labels, all_test_predictions)
 
 # Task 6: Dump your classifier, dataset, and features_list so anyone can
 # check your results. You do not need to change anything below, but make sure
