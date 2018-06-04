@@ -69,6 +69,7 @@ FEATURES_ONE_OF_EACH_FOR_TESTING = [
 FEATURES_TRY = ["shared_receipt_with_poi"]
 
 features_list = ["poi"] + FEATURES_ALL
+pipeline_steps = []
 
 # Load the dictionary containing the dataset
 with open("final_project_dataset.pkl", "r") as data_file:
@@ -79,23 +80,15 @@ with open("final_project_dataset.pkl", "r") as data_file:
 data_dict.pop("TOTAL", 0)
 
 # Scale the features (with robustness too outliers, which we remove later on).
-from sklearn.preprocessing import scale, robust_scale
-# Prepare the data to apply algorithms. This is a bit hacky but I'd like to
-# use the featureFormat() function from the project.
-wip_data = featureFormat(
-    data_dict,
-    features_list,
-    sort_keys=False,
-    remove_NaN=True,
-    remove_all_zeroes=False)
-wip_labels, wip_features = targetFeatureSplit(wip_data)
-
+from sklearn.preprocessing import StandardScaler, RobustScaler
 if not args.feature_scaling:
-    scaled_features = wip_features
+    scaler = None
 elif args.feature_scaling == "normal":
-    scaled_features = scale(wip_features)
+    scaler = StandardScaler()
 elif args.feature_scaling == "robust":
-    scaled_features = robust_scale(wip_features)
+    scaler = RobustScaler()
+if scaler:
+    pipeline_steps.append(scaler)
 
 # Validation:
 # from custom_validation import validate_scaling
@@ -176,18 +169,19 @@ else:
 from sklearn.feature_selection import SelectKBest, SelectPercentile, RFECV
 feature_selector = args.feature_selection
 if args.feature_selection == "kbest":
-    feature_selector = SelectPe(k=len(features_list) // 2)
+    feature_selector = SelectKBest(k=len(features_list) // 2)
 elif args.feature_selection == "p68.5":
     feature_selector = SelectPercentile(percentile=68.5)
 elif args.feature_selection == "RFECV":
     from sklearn.tree import DecisionTreeClassifier
     estimator = DecisionTreeClassifier()
     feature_selector = RFECV(estimator, n_jobs=2)
+if feature_selector:
+    pipeline_steps.append(feature_selector)
 
 # Create the pipeline of steps
-# clf = make_pipeline(pca, clf)
-if feature_selector:
-    clf = make_pipeline(feature_selector, clf)
+pipeline_steps.append(main_algorithm)
+clf = make_pipeline(*pipeline_steps)
 
 # Task 5: Tune your classifier to achieve better than .3 precision and recall
 # using our testing script. Check the tester.py script in the final project
