@@ -96,34 +96,10 @@ elif args.feature_scaling == "robust":
     scaled_features = robust_scale(wip_features)
 
 # Validation:
-# Keep a copy for validation, write back to the original data.
-original_data_dict = copy.deepcopy(data_dict)
-for person, scaled_person_feature_values in zip(data_dict.keys(),
-                                                scaled_features):
-    for feature, value in zip(features_list[1:], scaled_person_feature_values):
-        data_dict[person][feature] = value
-# For any number of random samples, the relation between both
-# should be the same in the scaled and unscaled sets.
-print "Validating scaled dataset ..."
-for i in range(100):
-    person1 = random.choice(original_data_dict.keys())
-    person2 = random.choice(original_data_dict.keys())
-    feature = random.choice(original_data_dict[person1].keys())
-    person1_original_value = original_data_dict[person1][feature]
-    person2_original_value = original_data_dict[person2][feature]
-    person1_scaled_value = data_dict[person1][feature]
-    person2_scaled_value = data_dict[person2][feature]
-    try:
-        assert (person1_original_value == "NaN"
-                or person2_original_value == "NaN"
-                or cmp(person1_original_value, person2_original_value) == cmp(
-                    person1_scaled_value, person2_scaled_value))
-    except AssertionError:
-        print "{} vs. {} == {} vs. {}".format(
-            person1_original_value, person2_original_value,
-            person1_scaled_value, person2_scaled_value)
-        raise
-print "... passed."
+# from custom_validation import validate_scaling
+# original_data_dict = copy.deepcopy(data_dict)
+# data_dict = scaler.fit_transform(data_dict)  # needs to work on ndarray instead of list
+# validate_scaling(original_data_dict, data_dict)
 
 # Task 2: Remove outliers
 
