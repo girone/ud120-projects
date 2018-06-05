@@ -148,16 +148,16 @@ my_dataset = data_dict
 # you'll need to use Pipelines. For more info:
 # http://scikit-learn.org/stable/modules/pipeline.html
 
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import LinearSVC
 # Select and initialize algorithm
 algorithm = args.algorithm
 if algorithm == "naive_bayes":
-    from sklearn.naive_bayes import GaussianNB
     main_algorithm = GaussianNB()
 elif algorithm == "decision_tree":
-    from sklearn.tree import DecisionTreeClassifier
     main_algorithm = DecisionTreeClassifier()
 elif algorithm == "linear_svc":
-    from sklearn.svm import LinearSVC
     main_algorithm = LinearSVC()
 else:
     print "Unknown algorithm", algorithm
@@ -197,33 +197,60 @@ clf = make_pipeline(*pipeline_steps)
 # stratified shuffle split cross validation. For more info:
 # http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.StratifiedShuffleSplit.html
 
-# Example starting point. Try investigating other evaluation techniques!
-from sklearn.model_selection import StratifiedShuffleSplit
-sss = StratifiedShuffleSplit(20, test_size=0.3, random_state=0)
+# print "Pipeline:", clf
+from time import time
+t0 = time()
+
+# rfecv = RFECV(cv=sss, estimator=main_algorithm, n_jobs=2, verbose=0)
+# rfecv.fit(features, labels)
+# print rfecv.n_features_
+# print zip(rfecv.ranking_, features_list[1:], rfecv.get_support())
+# print rfecv.n_features_to_select
+# exit(1)
+
 all_test_predictions = []
 all_test_labels = []
-for indices_train, indices_test in sss.split(features, labels):
-    training_features = []
-    testing_features = []
-    training_labels = []
-    testing_labels = []
-    for i in indices_train:
-        training_features.append(features[i])
-        training_labels.append(labels[i])
-    for i in indices_test:
-        testing_features.append(features[i])
-        testing_labels.append(labels[i])
-    clf.fit(training_features, training_labels)
-    predictions = clf.predict(testing_features)
-    all_test_predictions.extend(list(predictions))
-    all_test_labels.extend(list(testing_labels))
+# for indices_train, indices_test in sss.split(features, labels):
+#     training_features = []
+#     testing_features = []
+#     training_labels = []
+#     testing_labels = []
+#     for i in indices_train:
+#         training_features.append(features[i])
+#         training_labels.append(labels[i])
+#     for i in indices_test:
+#         testing_features.append(features[i])
+#         testing_labels.append(labels[i])
+#     clf.fit(training_features, training_labels)
+#     predictions = clf.predict(testing_features)
+#     all_test_predictions.extend(list(predictions))
+#     all_test_labels.extend(list(testing_labels))
+
+from sklearn.model_selection import StratifiedShuffleSplit, GridSearchCV
+sss = StratifiedShuffleSplit(5, test_size=0.3, random_state=0)
+pgrid = {}
+gscv = GridSearchCV(
+    estimator=clf,
+    param_grid=pgrid,
+    cv=sss,
+    scoring=["accuracy", "precision", "recall", "f1"],
+    refit=False,
+    n_jobs=2)
+gscv.fit(features, labels)
+print gscv.cv_results_
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-print clf
-print "Accuracy:", accuracy_score(all_test_labels, all_test_predictions)
-print "Precision:", precision_score(all_test_labels, all_test_predictions)
-print "Recall:", recall_score(all_test_labels, all_test_predictions)
-print "f1_score:", f1_score(all_test_labels, all_test_predictions)
+# print clf
+# print "Accuracy:", accuracy_score(all_test_labels, all_test_predictions)
+# print "Precision:", precision_score(all_test_labels, all_test_predictions)
+# print "Recall:", recall_score(all_test_labels, all_test_predictions)
+# print "f1_score:", f1_score(all_test_labels, all_test_predictions)
+
+print
+print "Took {:.3f}s".format(time() - t0)
+import pandas as pd
+with pd.option_context('display.max_rows', None, 'display.max_columns', 3):
+    print(pd.DataFrame(gscv.cv_results_))
 
 # Task 6: Dump your classifier, dataset, and features_list so anyone can
 # check your results. You do not need to change anything below, but make sure

@@ -210,7 +210,7 @@ Use StratifiedShuffleSplit for more CV-ish evaluation in `poi_id.py` so that I g
 #### Next steps (6)
 
 1. Set up GridSearchCV to help with finding optimal algorithm and parameter settings.
-2. Add some additional relative metrics for the financial data.
+2. Add some additional relative metrics for the financial data. Actually, most of the features can be set in relation to their total. I am not sure if this is reflected when training a classifier on a multi-dimensional space that contains the feature and the total.
 3. Find good algo+params combo.
 4. PCA, new text features, ...
 
