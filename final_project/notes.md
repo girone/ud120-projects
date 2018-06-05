@@ -26,7 +26,7 @@ Check individual features on their importance as done in [this example](http://s
 
 ### Thoughts on algorithms
 
-We have labelled data, with discrete labels. Thus, use supervised learning (Decision tree, naive Bayes, SVM, ensembles, k-nearest neighbors, LDA, logistic regression).
+We have labelled data, with discrete labels. Thus, use supervised learning (from the lecture: Decision tree, naive Bayes, SVM, ensemble methods (Forest of random trees), k-nearest neighbors, LDA, logistic regression; or other sklearn algorithms: Stochastic Gradient Descent SGD, Gaussian Process Classification GPC, ensemble methods(AdaBoost, Gradient Tree Boosting), Neutral Networks (Multi-Layer Perceptron MLPClassifier)).
 
 ## Experiments
 
@@ -210,6 +210,18 @@ Use StratifiedShuffleSplit for more CV-ish evaluation in `poi_id.py` so that I g
 #### Next steps (6)
 
 1. Set up GridSearchCV to help with finding optimal algorithm and parameter settings.
-2. Add some more relative metrics for the financial data.
+2. Add some additional relative metrics for the financial data.
 3. Find good algo+params combo.
 4. PCA, new text features, ...
+
+### 2018-06-05
+
+Literature search yielded new ideas:
+
+* Try `SelectFromModel(LinearSVC(penalty="l1"))` for feature selection.
+* Try other algorithms:
+  * `sklearn.ensemble.{RandomForestClassifier,AdaBoostClassifier,GradientBoostingClassifier}`
+  * `sklearn.gaussian_process.GaussianProcessClassifier`
+  * `sklearn.linear_model.SGDClassifier`
+  * `sklearn.svm.SVC(rbf_kernel)`
+  * `sklearn.neural_network.MLPClassifier`
