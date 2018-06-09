@@ -98,20 +98,20 @@ if scaler:
 
 # Task 2: Remove outliers
 
-# Remove summary entry "TOTAL" (done outside of pipeline processing because
-# its bias on the data would be too strong).
+# Remove summary entry "TOTAL" and the travel agency (done outside of pipeline
+# processing because its bias on the data would be too strong).
 data_dict.pop("TOTAL", 0)
-
-# Setting featureFormat()'s `sort_keys` parameter to true will break this!
-data = featureFormat(
-    data_dict,
-    features_list,
-    sort_keys=False,
-    remove_NaN=True,
-    remove_all_zeroes=False)  # need to keep these entries
-labels, features = targetFeatureSplit(data)
+data_dict.pop("THE TRAVEL AGENCY IN THE PARK", 0)
 
 if args.remove_outliers:
+    # Setting featureFormat()'s `sort_keys` parameter to true will break this!
+    data = featureFormat(
+        data_dict,
+        features_list,
+        sort_keys=False,
+        remove_NaN=True,
+        remove_all_zeroes=False)  # need to keep these entries
+    labels, features = targetFeatureSplit(data)
     # Remove outliers from the original data.
 
     # Use Local Outlier Factor LOF to detect ourliers. This is a nearest neighbor
