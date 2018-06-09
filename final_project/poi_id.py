@@ -12,18 +12,25 @@ sys.path.append("../tools/")
 from feature_format import featureFormat, targetFeatureSplit
 from tester import dump_classifier_and_data
 
+# TODO(Jonas): Randomize the seed.
+SEED = 1
+
 # TODO(Jonas): Set reasonable defaults here when cleaning up. Whatever performs best.
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--algorithm",
-    choices=["naive_bayes", "decision_tree", "linear_svc"],
-    default="naive_bayes")
+    choices=[
+        "naive_bayes", "decision_tree", "linear_svc", "rbf_svc",
+        "logistic_regression", "ada_boost", "gradient_boosting",
+        "random_forest", "gaussian_process", "stochastic_gradient_descent",
+        "multi_layer_perceptron"
+    ])
 parser.add_argument("--remove-outliers", action="store_true")
 parser.add_argument(
     "--feature-scaling", choices=["normal", "robust"], default=None)
 parser.add_argument(
     "--feature-selection",
-    choices=[None, "kbest", "p68.5", "RFECV"],
+    choices=[None, "kbest", "p68.5", "RFECV", "linear_model"],
     default=None)
 args = parser.parse_args()
 
@@ -75,16 +82,15 @@ with open("final_project_dataset.pkl", "r") as data_file:
 
 # Scale the features (with robustness too outliers, which we remove later on).
 from sklearn.preprocessing import StandardScaler, RobustScaler
-if not args.feature_scaling:
-    scaler = None
-elif args.feature_scaling == "normal":
+scaler = None
+if args.feature_scaling == "normal":
     scaler = StandardScaler()
 elif args.feature_scaling == "robust":
     scaler = RobustScaler()
 if scaler:
     pipeline_steps.append(scaler)
 
-# Validation:
+# Validation of scaling:
 # from custom_validation import validate_scaling
 # original_data_dict = copy.deepcopy(data_dict)
 # data_dict = scaler.fit_transform(data_dict)  # needs to work on ndarray instead of list
@@ -161,7 +167,11 @@ my_dataset = data_dict
 
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import LinearSVC
+from sklearn.svm import LinearSVC, SVC
+from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier, RandomForestClassifier
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.neural_network import MLPClassifier
 # Select and initialize algorithm
 algorithm = args.algorithm
 if algorithm == "naive_bayes":
@@ -169,7 +179,23 @@ if algorithm == "naive_bayes":
 elif algorithm == "decision_tree":
     main_algorithm = DecisionTreeClassifier()
 elif algorithm == "linear_svc":
-    main_algorithm = LinearSVC()
+    main_algorithm = LinearSVC(dual=False, random_state=SEED)
+elif algorithm == "rbf_svc":
+    main_algorithm = SVC()
+elif algorithm == "logistic_regression":
+    main_algorithm = LogisticRegression()
+elif algorithm == "ada_boost":
+    main_algorithm = AdaBoostClassifier(random_state=SEED)
+elif algorithm == "gradient_boosting":
+    main_algorithm = GradientBoostingClassifier(random_state=SEED)
+elif algorithm == "random_forest":
+    main_algorithm = RandomForestClassifier()
+elif algorithm == "gaussian_process":
+    main_algorithm = GaussianProcessClassifier()
+elif algorithm == "stochastic_gradient_descent":
+    main_algorithm = SGDClassifier()
+elif algorithm == "multi_layer_perceptron":
+    main_algorithm = MLPClassifier()
 else:
     print "Unknown algorithm", algorithm
     exit(1)
@@ -184,7 +210,7 @@ else:
 #         plot_two_features(data_dict, feature1, feature2, annotate=False)
 
 # Setup feature selection
-from sklearn.feature_selection import SelectKBest, SelectPercentile, RFECV
+from sklearn.feature_selection import SelectKBest, SelectPercentile, RFECV, SelectFromModel
 feature_selector = args.feature_selection
 if args.feature_selection == "kbest":
     feature_selector = SelectKBest(k=len(features_list) // 2)
@@ -192,8 +218,13 @@ elif args.feature_selection == "p68.5":
     feature_selector = SelectPercentile(percentile=68.5)
 elif args.feature_selection == "RFECV":
     from sklearn.tree import DecisionTreeClassifier
-    estimator = DecisionTreeClassifier()
-    feature_selector = RFECV(estimator, n_jobs=2)
+    # estimator = DecisionTreeClassifier(criterion="entropy", random_state=SEED)
+    # estimator = LinearSVC()
+    estimator = main_algorithm
+    feature_selector = RFECV(estimator, cv=sss)
+elif args.feature_selection == "linear_model":
+    feature_selector = SelectFromModel(
+        LinearSVC(penalty="l1", dual=False, random_state=SEED))
 if feature_selector:
     pipeline_steps.append(feature_selector)
 
