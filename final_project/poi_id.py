@@ -209,6 +209,13 @@ else:
 #     for feature2 in features_list[1:]:
 #         plot_two_features(data_dict, feature1, feature2, annotate=False)
 
+# Use StratifiedShuffleSplit instead of default StratifiedKFold for cross validation:
+# See notes.md for a summary of the article at scikit-learn.org on cross validaiton.
+# The rationale of stratification is that the relative frequencies of class labels
+# (POI or not POI) should be the same in training and test set as in the whole data.
+from sklearn.model_selection import StratifiedShuffleSplit
+sss = StratifiedShuffleSplit(n_splits=10, test_size=0.3, random_state=SEED)
+
 # Setup feature selection
 from sklearn.feature_selection import SelectKBest, SelectPercentile, RFECV, SelectFromModel
 feature_selector = args.feature_selection
@@ -226,7 +233,36 @@ elif args.feature_selection == "linear_model":
     feature_selector = SelectFromModel(
         LinearSVC(penalty="l1", dual=False, random_state=SEED))
 if feature_selector:
-    pipeline_steps.append(feature_selector)
+    # NOTE(Jonas): Disabled because running RFE-CV does not make sense in the
+    # tester.py, only slows it down. We rather restrict the features of the
+    # input to what we found best.
+    # pipeline_steps.append(feature_selector)
+
+    print "Feature selection..."
+    data = featureFormat(
+        data_dict,
+        features_list,
+        sort_keys=False,
+        remove_NaN=True,
+        remove_all_zeroes=False)  # need to keep these entries
+    labels, features = targetFeatureSplit(data)
+    feature_selector.fit(features, labels)
+    mask = feature_selector._get_support_mask()
+    print "\n".join(
+        [" * {}: {}".format(a, b) for a, b in zip(features_list[1:], mask)])
+    selected_features = [a for a, b in zip(features_list[1:], mask) if b]
+    # Filter data_dict by changing the feature list:
+    features_list = ["poi"] + selected_features
+print "Selected features:", features_list
+
+# Recreate from new data set
+data = featureFormat(
+    data_dict,
+    features_list,
+    sort_keys=False,
+    remove_NaN=True,
+    remove_all_zeroes=False)  # need to keep these entries
+labels, features = targetFeatureSplit(data)
 
 # Create the pipeline of steps
 pipeline_steps.append(main_algorithm)
@@ -235,64 +271,59 @@ clf = make_pipeline(*pipeline_steps)
 # Task 5: Tune your classifier to achieve better than .3 precision and recall
 # using our testing script. Check the tester.py script in the final project
 # folder for details on the evaluation method, especially the test_classifier
-# function. Because of the small size of the dataset, the script uses
-# stratified shuffle split cross validation. For more info:
-# http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.StratifiedShuffleSplit.html
+# function.
 
-# print "Pipeline:", clf
-from time import time
-t0 = time()
-
-# rfecv = RFECV(cv=sss, estimator=main_algorithm, n_jobs=2, verbose=0)
-# rfecv.fit(features, labels)
-# print rfecv.n_features_
-# print zip(rfecv.ranking_, features_list[1:], rfecv.get_support())
-# print rfecv.n_features_to_select
-# exit(1)
-
-all_test_predictions = []
-all_test_labels = []
-# for indices_train, indices_test in sss.split(features, labels):
-#     training_features = []
-#     testing_features = []
-#     training_labels = []
-#     testing_labels = []
-#     for i in indices_train:
-#         training_features.append(features[i])
-#         training_labels.append(labels[i])
-#     for i in indices_test:
-#         testing_features.append(features[i])
-#         testing_labels.append(labels[i])
-#     clf.fit(training_features, training_labels)
-#     predictions = clf.predict(testing_features)
-#     all_test_predictions.extend(list(predictions))
-#     all_test_labels.extend(list(testing_labels))
-
-from sklearn.model_selection import StratifiedShuffleSplit, GridSearchCV
-sss = StratifiedShuffleSplit(5, test_size=0.3, random_state=0)
-pgrid = {}
-gscv = GridSearchCV(
+# Search best parameters.
+from sklearn.model_selection import GridSearchCV
+parameter_grid = {
+    "gradientboostingclassifier__criterion": ["friedman_mse", "mae"],
+    "gradientboostingclassifier__loss": ["deviance", "exponential"],
+    "gradientboostingclassifier__n_estimators":
+    [10, 50, 90, 100, 120, 150, 200],
+    "gradientboostingclassifier__max_depth": [1, 3, 6, 8, 9, 10, 12, 15, 20],
+    "gradientboostingclassifier__max_features": [None, "sqrt", "log2", 0.9],
+    "gradientboostingclassifier__subsample": [0.5, 0.8, 0.9, 1.]
+}
+# Validate the parameter grid:
+for key in parameter_grid.keys():
+    if key not in clf.get_params():
+        raise Exception(
+            "'{}' is not among the parameters of your algorithm, which are {}".
+            format(key, ",".join(clf.get_params())))
+# Optimize for f1 score brings good combination of precision and recall.
+scoring_function = "f1"
+scoring_function = "recall"
+param_search = GridSearchCV(
     estimator=clf,
-    param_grid=pgrid,
+    param_grid=parameter_grid,
     cv=sss,
-    scoring=["accuracy", "precision", "recall", "f1"],
-    refit=False,
+    scoring=scoring_function,
     n_jobs=2)
-gscv.fit(features, labels)
-print gscv.cv_results_
+param_search.fit(features, labels)
+# print param_search.cv_results_
+print "Best estimator:", param_search.best_estimator_
+print "Best parameters:", param_search.best_params_
+print "Score({}):".format(scoring_function), param_search.best_score_
 
+with open("cv_results.pkl", "wb") as file:
+    pickle.dump(param_search.cv_results_, file)
+
+# The result could be used as classifier right away. However, the code in
+# `tester.py` fits it to the data several times. This means evaluation
+# takes very long when presented with the GridSearch+StratifiedShuffleSplit(n=5)
+# classifier. Thus, we extract the best found parameter and store it as classifier.
+clf = param_search.best_estimator_
+
+# Apply it on the whole data to get an idea of the other metrics (using multiple
+# scoring functions in the GridSearch + refit parameter will repeat the search
+# for all scoring functions, but not yield the other scores for the one selected
+# for fitting).
+predictions = clf.predict(features)
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-# print clf
-# print "Accuracy:", accuracy_score(all_test_labels, all_test_predictions)
-# print "Precision:", precision_score(all_test_labels, all_test_predictions)
-# print "Recall:", recall_score(all_test_labels, all_test_predictions)
-# print "f1_score:", f1_score(all_test_labels, all_test_predictions)
-
-print
-print "Took {:.3f}s".format(time() - t0)
-import pandas as pd
-with pd.option_context('display.max_rows', None, 'display.max_columns', 3):
-    print(pd.DataFrame(gscv.cv_results_))
+print "Accuracy:", accuracy_score(labels, predictions)
+print "Precision:", precision_score(labels, predictions)
+print "Recall:", recall_score(labels, predictions)
+print "f1_score:", f1_score(labels, predictions)
 
 # Task 6: Dump your classifier, dataset, and features_list so anyone can
 # check your results. You do not need to change anything below, but make sure

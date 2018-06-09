@@ -22,7 +22,8 @@ Check individual features on their importance as done in [this example](http://s
 1. Emails from and to POIs as shares.
 2. Set every payment and stock feature in relation to the total (maybe this can be achieved with PCA without adding N new features).
 3. Text features. Think about some more complpex metric here.
-4. Ratio of total payments to total stock
+4. Ratio of total payments to total stock.
+5. Relativate all financial features to the respective total..
 
 ### Thoughts on algorithms
 
@@ -246,6 +247,8 @@ Pipeline(memory=None,
     Accuracy: 0.82053    Precision: 0.31960    Recall: 0.30650    F1: 0.31291    F2: 0.30903
     Total predictions: 15000    True positives:  613    False positives: 1305    False negatives: 1387    True negatives: 11695
 
+Review cross validation and parameter tuning. See below:
+
 #### Review of cross validation
 
 See [Cross validation of estimator performance](http://scikit-learn.org/stable/modules/cross_validation.html#cross-validation) for an explanation of StratifiedKFold and StratifiedShuffleSplit and so on. Here is a summary:
@@ -324,3 +327,111 @@ param_grid = dict(reduce_dim=[None, PCA(5), PCA(10)],
                   clf__C=[0.1, 10, 100])
 grid_search = GridSearchCV(pipe, param_grid=param_grid)
 ```
+
+#### Getting the pipeline straight
+
+1. Add new features
+2. Remove outliers
+3. Select features
+4. Scale remaining features
+5. Select main algorithm
+6. Setup GridSearchCV with StratifiedShuffleSplit (because of small dataset with limited number of positive class labels) as cross validation method.
+7. Extract best estimator and save it to disk for later evaluation
+
+#### Adding new features
+
+Created code to generically create features which set an existing feature in relation with some total (e.g. "bonus" / "total payments" => "relative bonus"). Use it to create 11 new features.
+
+Create a feature selection "preview": Compute it on the data extended with new features.
+
+RFECV with StratifiedShuffleSplit as estimation pipeline step slows the execution time of `tester.py` down, because it is nested in the other SSS cycle and thus done a lot of times. Maybe the RFECV can be used as outer estimator to speed it up. Alternatively, its results should be used to restrict the `data_dict` to the relevant features and then store these. This is done by restricting `features_list` to the list of selected feauters.
+
+#### Results
+
+* python poi_id.py --algorithm=gradient_boosting --feature-selection=RFECV && time python tester.py
+  * Pipeline(memory=None,
+     steps=[('gradientboostingclassifier', GradientBoostingClassifier(criterion='friedman_mse', init=None,
+              learning_rate=0.1, loss='deviance', max_depth=3,
+              max_features=None, max_leaf_nodes=None,
+              min_impurity_decrease=0.0, min_impurity_split=None,
+              m...      presort='auto', random_state=None, subsample=1.0, verbose=0,
+              warm_start=False))])
+    Accuracy: 0.84593    Precision: 0.44597    Recall: 0.32400    F1: 0.37533    F2: 0.34275
+    Total predictions: 14000    True positives:  648    False positives:  805    False negatives: 1352    True negatives: 11195
+  * real    1m5.614s
+
+* python poi_id.py --algorithm=ada_boost --feature-selection=RFECV && time python tester.py
+  * Pipeline(memory=None,
+     steps=[('adaboostclassifier', AdaBoostClassifier(algorithm='SAMME.R', base_estimator=None,
+          learning_rate=1.0, n_estimators=50, random_state=None))])
+    Accuracy: 0.84213    Precision: 0.37534    Recall: 0.27700    F1: 0.31876    F2: 0.29232
+    Total predictions: 15000    True positives:  554    False positives:  922    False negatives: 1446    True negatives: 12078
+  * real    2m47.607s
+
+What I still dont understand: Feature selection gives different features every time I run it, strongly variating in the number and which features are actually selected. However, the result seems to be the same most of the times. I have the random seed of the StratifiedShuffleSplit fixed to 1, so it should always generate the training data for the RFECV. There are extremes:
+
+* Features selected with DecisionTreeClassifier as RFECV estimator. This selects 'poi', 'exercised_stock_options', 'relative_bonus'.
+  * Accuracy: 0.80992    Precision: 0.36489    Recall: 0.31800    F1: 0.33983    F2: 0.32639
+  * When repeated, this gives really different sets of selected features everytime.
+* No features filtered away: python poi_id.py --algorithm=gradient_boosting && time python tester.py
+  * Accuracy: 0.84787    Precision: 0.36847    Recall: 0.19750    F1: 0.25716    F2: 0.21770
+
+If I don't find the reason by the evening, I will post the question to the forums.
+
+* Decision tree has a `random_state` parameter, too. Here it is really at will which feature is selected for splitting. Set the `criterion="entropy"` instead of default `"gini"`.
+
+#### More algorithms
+
+Trying  `SelectFromModel(LinearSVC(penalty="l1"))` for feature selection.
+
+* Does not improve the results (for GradientBoostingClassifier).
+
+Trying other algorithms:
+
+* `sklearn.linear_model.LogisticRegression` (+ SelectFromModel(LinearSVC), fails on --feature-selection=RFECV)
+  * Accuracy: 0.87373  Precision: 0.56709  Recall: 0.22400  F1: 0.32115  F2: 0.25484
+  * Really fast
+* `sklearn.ensemble.RandomForestClassifier` (+ RFECV)
+  * Accuracy: 0.86087  Precision: 0.42461  Recall: 0.12250  F1: 0.19014  F2: 0.14282
+* `sklearn.gaussian_process.GaussianProcessClassifier` (+ SelectFromModel(LinearSVC), fails on --feature-selection=RFECV)
+  * Accuracy: 0.88093  Precision: 1.00000  Recall: 0.10700  F1: 0.19332  F2: 0.13027
+* `sklearn.linear_model.SGDClassifier`
+  * Accuracy: 0.79053  Precision: 0.23662  Recall: 0.25650  F1: 0.24616  F2: 0.25226 (--feature-selection=linear_model)
+  * Accuracy: 0.77913  Precision: 0.03800  Recall: 0.02700  F1: 0.03157  F2: 0.02866 (--feature-selection=RFECV, leaves only a few features)
+* `sklearn.svm.SVC(rbf_kernel)`
+  * Fails in evaluation in `tester.py`.
+* `sklearn.neural_network.MLPClassifier` (+ SelectFromModel(LinearSVC), fails on --feature-selection=RFECV)
+  * Accuracy: 0.73647  Precision: 0.13712  Recall: 0.18450  F1: 0.15732  F2: 0.17258
+
+Summary: `GradientBoostingClassifier` and `AdaBoostClassifier` are best, allthough slow. The former is much faster than the latter.
+
+* `ensemble.GradientBoostingClassifier`
+  * Accuracy: 0.81900  Precision: 0.20816  Recall: 0.12750  F1: 0.15814  F2: 0.13821 (--feature-selection=linear_model)
+  * Accuracy: 0.85087  Precision: 0.38595  Recall: 0.20050  F1: 0.26390  F2: 0.22182(--feature-selection=RFECV)
+  * Accuracy: 0.84780  Precision: 0.36862  Recall: 0.19850  F1: 0.25804  F2: 0.21868 (no feature selection)
+* `ensemble.AdaBoostClassifier`
+  * Accuracy: 0.85867  Precision: 0.46073  Recall: 0.35200  F1: 0.39909  F2: 0.36944 (--feature-selection=RFECV, features: ['poi', 'salary', 'bonus', 'other', 'expenses', 'total_payments', 'exercised_stock_options', 'restricted_stock', 'restricted_stock_deferred', 'total_stock_value', 'from_poi_to_this_person', 'emails_to_poi_share', 'total_payments_to_stock_value_ratio', 'relative_long_term_incentive', 'relative_deferred_income', 'relative_other', 'relative_exercised_stock_options', 'relative_restricted_stock'])
+  * Accuracy: 0.79433  Precision: 0.15686  Recall: 0.12400  F1: 0.13851  F2: 0.12942 (--feature-selection=linear_model, features: ['poi', 'director_fees', 'to_messages', 'from_poi_to_this_person', 'from_messages', 'from_this_person_to_poi', 'shared_receipt_with_poi', 'relative_salary', 'relative_deferred_income', 'relative_other', 'relative_exercised_stock_options'])
+
+#### Hyper-parameter tuning
+
+Algorithm `GradientBoostingClassifier` seems to work best/fast with default settings. Might be luck, but let's see if we can improve this one by tuning its parameters.
+
+* First attempt. Best parameters: {'gradientboostingclassifier__max_features': 'sqrt', 'gradientboostingclassifier__max_depth': 3, 'gradientboostingclassifier__subsample': 0.8, 'gradientboostingclassifier__n_estimators': 100, 'gradientboostingclassifier__loss': 'exponential'}
+  * Accuracy: 0.87693  Precision: 0.60294  Recall: 0.22550  F1: 0.32824  F2: 0.25777
+* Without "THE TRAVEL AGENCY IN THE PARK". {'gradientboostingclassifier__max_features': None, 'gradientboostingclassifier__max_depth': 9, 'gradientboostingclassifier__subsample': 1.0, 'gradientboostingclassifier__n_estimators': 100, 'gradientboostingclassifier__loss': 'deviance'}
+  * Accuracy: 0.82620  Precision: 0.32707  Recall: 0.28700  F1: 0.30573  F2: 0.29421
+* Select parameters with scoring function "recall". {'gradientboostingclassifier__max_features': None, 'gradientboostingclassifier__max_depth': 9, 'gradientboostingclassifier__subsample': 1.0, 'gradientboostingclassifier__n_estimators': 100, 'gradientboostingclassifier__loss': 'deviance'}
+  * Accuracy: 0.82620  Precision: 0.32707  Recall: 0.28700  F1: 0.30573  F2: 0.29421
+* More grid values <<**TODO**>>
+  * No changes.
+
+Recall still bad. Removing the travel agency does not seem to help, but it should be gone anyhow.
+
+#### Next steps (7)
+
+1. Reflect on the whole thing.
+2. Read on RFECV and GradientBoostingClassifier.
+3. Review the new features: Should missing data points be NaN or 0? Maybe I changed this in the `featureFormat()` arguments. Visualize them!
+4. Try using RFECV as estimator like done by that other dude.
+5. Try feature scaling and outlier removal.
