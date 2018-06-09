@@ -210,9 +210,10 @@ Use StratifiedShuffleSplit for more CV-ish evaluation in `poi_id.py` so that I g
 #### Next steps (6)
 
 1. Set up GridSearchCV to help with finding optimal algorithm and parameter settings.
-2. Add some additional relative metrics for the financial data. Actually, most of the features can be set in relation to their total. I am not sure if this is reflected when training a classifier on a multi-dimensional space that contains the feature and the total.
-3. Find good algo+params combo.
-4. PCA, new text features, ...
+2. Get the combination of parameter search, classification and evaluation right.
+3. Add some additional relative metrics for the financial data. Actually, most of the features can be set in relation to their total. I am not sure if this is reflected when training a classifier on a multi-dimensional space that contains the feature and the total.
+4. Find good algo+params combo.
+5. PCA, new text features, ...
 
 ### 2018-06-05
 
@@ -225,3 +226,101 @@ Literature search yielded new ideas:
   * `sklearn.linear_model.SGDClassifier`
   * `sklearn.svm.SVC(rbf_kernel)`
   * `sklearn.neural_network.MLPClassifier`
+
+### 2018-06-09
+
+Review and clean up the code. Use code that does not trigger deprecation warnings all over the place. Get the combination of feature selection and the supervised learning algorithm right. Create a baseline.
+
+Baseline:
+
+python poi_id.py --algorithm=decision_tree > blub.txt
+python tester.py
+
+Pipeline(memory=None,
+     steps=[('decisiontreeclassifier', DecisionTreeClassifier(class_weight=None, criterion='gini', max_depth=None,
+            max_features=None, max_leaf_nodes=None,
+            min_impurity_decrease=0.0, min_impurity_split=None,
+            min_samples_leaf=1, min_samples_split=2,
+            min_weight_fraction_leaf=0.0, presort=False, random_state=None,
+            splitter='best'))])
+    Accuracy: 0.82053    Precision: 0.31960    Recall: 0.30650    F1: 0.31291    F2: 0.30903
+    Total predictions: 15000    True positives:  613    False positives: 1305    False negatives: 1387    True negatives: 11695
+
+#### Review of cross validation
+
+See [Cross validation of estimator performance](http://scikit-learn.org/stable/modules/cross_validation.html#cross-validation) for an explanation of StratifiedKFold and StratifiedShuffleSplit and so on. Here is a summary:
+
+* General Idea: Split data into train and test set to avoid overfitting of an estimator.
+* Note that CV applies not only to the estimator, but also to preprocessing steps like feature scaling which have to be separately fit and applied on the training data and the test data, respectively, during training and evaluation.
+* Simples approach: `train_test_split()`
+* When tuning parameters, this will still overfit because knowledge about the test set "leaks" into the model.
+* Solution: Split into training, validation and test set: After training, validate on validation set, only finally check against the test set. Note tht parameter tuning is _not_ done against the test but the validation set).
+* Problem: Splitting into three sets leaves only a small portion of the data for each step. Thus, neither training generalizes well nor do the test results have much significance. The effect of this problem is larger if the available data is small (as in our project).
+* Cross validation (CV) is the solution. Basic k-fold CV splits the training set into k smaller sets ("folds"). Then repeat
+  * Use k-1 sets for training
+  * Evlatuate against the remaining set
+  * Finally the performance metrics of the k steps are averaged.
+* Simplest CV approach is the function `cross_val_score()`:
+
+```Python
+from sklearn.model_selection import cross_val_score
+scores = cross_val_score(clf, X, y, cv=5)
+print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+>>> Accuracy: 0.98 (+/- 0.03)
+```
+
+* Can pass differenct `[score](http://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter)`  functions.
+* Parameter `cv` is by default KFold or StratifiedKFold (for ClassifierMixin estimators).
+* More elaborate settings with `cross_validate()` (can pass multiple scoring functions at once):
+
+```Python
+scores = cross_validate(clf, iris.data, iris.target, scoring=sc['precision_macro', 'recall_macro', 'f1_macro'],
+                        cv=5, return_train_score=False)
+scores['test_recall_macro'].mean()
+```
+
+* Can be used to directly predict with the same interface in function `cross_val_predict()`:
+
+```Python
+from sklearn.model_selection import cross_val_predict
+predicted = cross_val_predict(clf, iris.data, iris.target, cv=10)
+metrics.accuracy_score(iris.target, predicted)
+```
+
+* Different "data iterators" for cross validation (only naming the most significant different):
+  * `KFold`. See above.
+  * `ShuffleSplit`. Shuffle data, split into test and train set. Parameter `n_splits` will repeat this n times and return n different splits (each comprising the whole data).
+  * `StratifiedKFold` and `StratifiedShuffleSplit`. Take into account the class labels: The relative class frequency in training and test set corresponds to the whole data set. Useful for small data sets and when there is an imbalance between class labels (as in our project).
+
+#### Review of hyper-parameter tuning
+
+Hyper-parameters are those which are not automatically learnt during the training process. See [scikit's user guid on parameter search](http://scikit-learn.org/stable/modules/grid_search.html#grid-search). Here is a summary:
+
+A search consists of
+
+* an estimator with certain hyper-parameters (e.g. see `SVC().get_params()`)
+* a parameter space
+* a method for searching or sampling candidates
+  * `GridSearchCV` performs search over all combinations of parameters from a grid
+  * `RandomizedSearchCV`
+* a cross-validation scheme
+* a score function
+
+`GridSearchCV` implements the estimator API: After fitting, it can be used as estimator and will use the optimal parameters found.
+
+Some considerations:
+
+* The grid is like a list of parameter sets to be used. There is also something which takes possible values for each parameter and creates the cross-product which can be used as input to the search.
+* The default `scoring` function for classification is accuracy. In the project we aim for a good precision and recall, hence these should be used or the f1 score. See the user guide on [scoring functions](http://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter).
+  * Specifying multiple scoring functions requires `refit` to be set to one of these. The resulting estimator will use the optimal parameter set for this metric for predictions.
+* Evaluation of the resulting model _should_ be done on held-out data, because  searching best parameters is also a kind of training.
+
+Example:
+
+```Python
+from sklearn.linear_model import LogisticRegression
+param_grid = dict(reduce_dim=[None, PCA(5), PCA(10)],
+                  clf=[SVC(), LogisticRegression()],
+                  clf__C=[0.1, 10, 100])
+grid_search = GridSearchCV(pipe, param_grid=param_grid)
+```
