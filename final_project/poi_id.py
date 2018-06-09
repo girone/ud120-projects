@@ -44,9 +44,6 @@ def plot_two_features(data_dict, feature1, feature2, annotate=False):
 
 
 # Task 1: Select what features you'll use.
-# features_list is a list of strings, each of which is a feature name.
-# The first feature must be "poi".
-features_list = ['poi', 'salary']  # You will need to use more features
 
 # Available features in the original data:
 FEATURES_PAYMENT = [
@@ -133,11 +130,25 @@ if args.remove_outliers:
     # (without extending the API, which is beyond the scope of this project).
     # Will try to use this reasonably, probably after adding the new features.
 
+# TODO(Jonas): Try removing outliers after adding the relative features.
+
 # Task 3: Create new feature(s)
-from additional_features import EmailShares, PaymentsStockRatio
+
+print "Adding features..."
+from additional_features import EmailShares, PaymentsStockRatio, RelativeFeature
 for new_features in [EmailShares(), PaymentsStockRatio()]:
     data_dict = new_features.extend(data_dict)
     features_list.extend(new_features.new_feature_names())
+    for name in new_features.new_feature_names():
+        print " * added feature", name
+
+for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
+    # Assumes that the "total_" feature is the last in the list.
+    for feature in feature_list[:-1]:
+        new_feature = RelativeFeature(feature, feature_list[-1])
+        data_dict = new_feature.extend(data_dict)
+        features_list.extend(new_feature.new_feature_names())
+        print " * added feature", features_list[-1]
 
 # Store to my_dataset for easy export below.
 my_dataset = data_dict

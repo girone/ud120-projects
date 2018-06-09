@@ -23,6 +23,31 @@ class NewFeature:
         """Returns a list of the names this class adds."""
 
 
+class RelativeFeature(NewFeature):
+    def __init__(self, numerator_feature, denominator_feature):
+        self.numerator_feature = numerator_feature
+        self.denominator_feature = denominator_feature
+        self.feature_name = "relative_" + numerator_feature
+
+    def extend(self, data_dict):
+        """Extends the data set with the relation of a feature towards
+        another (typically summarizing feature).
+        """
+        for person, data in data_dict.iteritems():
+            numerator = get_without_NaN(data_dict, person,
+                                        self.numerator_feature)
+            denominator = get_without_NaN(data_dict, person,
+                                          self.denominator_feature)
+            data_dict[person][self.feature_name] = (numerator / denominator
+                                                    if denominator and
+                                                    not np.isnan(denominator)
+                                                    else 0.)
+        return data_dict
+
+    def new_feature_names(self):
+        return [self.feature_name]
+
+
 class EmailShares(NewFeature):
     FEATURE_1 = "emails_to_poi_share"
     FEATURE_2 = "emails_from_poi_share"
@@ -34,17 +59,17 @@ class EmailShares(NewFeature):
             to_poi = get_without_NaN(data_dict, person,
                                      "from_this_person_to_poi")
             from_total = get_without_NaN(data_dict, person, "from_messages")
-            data_dict[person][
-                self.
-                FEATURE_1] = to_poi / from_total if from_total and not np.isnan(
-                    from_total) else 0.
+            data_dict[person][self.FEATURE_1] = (to_poi / from_total
+                                                 if from_total
+                                                 and not np.isnan(from_total)
+                                                 else 0.)
             from_poi = get_without_NaN(data_dict, person,
                                        "from_poi_to_this_person")
             to_total = get_without_NaN(data_dict, person, "to_messages")
-            data_dict[person][
-                self.
-                FEATURE_2] = from_poi / to_total if to_total and not np.isnan(
-                    to_total) else 0.
+            data_dict[person][self.FEATURE_2] = (from_poi / to_total
+                                                 if to_total
+                                                 and not np.isnan(to_total)
+                                                 else 0.)
         return data_dict
 
     def new_feature_names(self):
