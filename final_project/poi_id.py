@@ -244,14 +244,8 @@ if feature_selector:
     # tester.py, only slows it down. We rather restrict the features of the
     # input to what we found best.
     # pipeline_steps.append(feature_selector)
-
     print "Feature selection..."
-    data = featureFormat(
-        data_dict,
-        features_list,
-        sort_keys=False,
-        remove_NaN=True,
-        remove_all_zeroes=False)  # need to keep these entries
+    data = featureFormat(data_dict, features_list, sort_keys=True)
     labels, features = targetFeatureSplit(data)
     feature_selector.fit(features, labels)
     mask = feature_selector._get_support_mask()
@@ -263,12 +257,7 @@ if feature_selector:
 print "Selected features:", features_list
 
 # Recreate from new data set
-data = featureFormat(
-    data_dict,
-    features_list,
-    sort_keys=False,
-    remove_NaN=True,
-    remove_all_zeroes=False)  # need to keep these entries
+data = featureFormat(data_dict, features_list, sort_keys=True)
 labels, features = targetFeatureSplit(data)
 
 # Create the pipeline of steps
