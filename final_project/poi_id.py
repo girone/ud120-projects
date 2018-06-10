@@ -6,6 +6,7 @@ import pickle
 import copy
 import random
 import numpy as np
+from itertools import tee, izip
 from sklearn.pipeline import make_pipeline
 sys.path.append("../tools/")
 
@@ -14,6 +15,29 @@ from tester import dump_classifier_and_data
 
 # TODO(Jonas): Randomize the seed.
 SEED = 1
+
+
+def plot_two_features(data_dict, feature1, feature2, annotate=False):
+    """Creates a scatterplot with optional labels on data points."""
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    for name, entry in data_dict.iteritems():
+        x = np.nan_to_num(entry[feature1])
+        y = np.nan_to_num(entry[feature2])
+        ax.scatter(x, y, color="red" if entry["poi"] else "black")
+        if annotate:
+            ax.annotate(name, (x, y))
+    plt.xlabel(feature1)
+    plt.ylabel(feature2)
+    plt.show()
+
+
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
+
 
 # TODO(Jonas): Set reasonable defaults here when cleaning up. Whatever performs best.
 parser = argparse.ArgumentParser()
@@ -33,22 +57,6 @@ parser.add_argument(
     choices=[None, "kbest", "p68.5", "RFECV", "linear_model"],
     default=None)
 args = parser.parse_args()
-
-
-def plot_two_features(data_dict, feature1, feature2, annotate=False):
-    """Creates a scatterplot with optional labels on data points."""
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    for name, entry in data_dict.iteritems():
-        x = entry[feature1]
-        y = entry[feature2]
-        ax.scatter(x, y, color="red" if entry["poi"] else "black")
-        if annotate:
-            ax.annotate(name, (x, y))
-    plt.xlabel(feature1)
-    plt.ylabel(feature2)
-    plt.show()
-
 
 # Task 1: Select what features you'll use.
 
@@ -156,6 +164,10 @@ for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
         features_list.extend(new_feature.new_feature_names())
         print " * added feature", features_list[-1]
 
+# Visualize features
+# for feature1, feature2 in pairwise(features_list[1:]):
+#     plot_two_features(data_dict, feature1, feature2, annotate=False)
+
 # Store to my_dataset for easy export below.
 my_dataset = data_dict
 
@@ -203,11 +215,6 @@ else:
 # Setup PCA
 # from sklearn.decomposition import PCA
 # pca = PCA(n_components=len(features_list) // 2)
-
-# Visualize
-# for feature1 in features_list[1:]:
-#     for feature2 in features_list[1:]:
-#         plot_two_features(data_dict, feature1, feature2, annotate=False)
 
 # Use StratifiedShuffleSplit instead of default StratifiedKFold for cross validation:
 # See notes.md for a summary of the article at scikit-learn.org on cross validaiton.
