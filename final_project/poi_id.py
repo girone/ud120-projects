@@ -70,16 +70,19 @@ FEATURES_STOCK = [
     "exercised_stock_options", "restricted_stock", "restricted_stock_deferred",
     "total_stock_value"
 ]
-FEATURES_EMAIL = [
-    "to_messages", "from_poi_to_this_person", "from_messages",
-    "from_this_person_to_poi"
-]  # "email_address" not included yet, could add a "has enron email address" feature
+FEATURES_EMAIL_COUNTS = [
+    "to_messages",
+    "from_poi_to_this_person",
+    "from_messages",
+    "from_this_person_to_poi",
+]
 FEATURES_OTHER = ["shared_receipt_with_poi"]
-FEATURES_ALL = FEATURES_PAYMENT + FEATURES_STOCK + FEATURES_EMAIL + FEATURES_OTHER
+FEATURES_ALL = FEATURES_PAYMENT + FEATURES_STOCK + FEATURES_EMAIL_COUNTS + FEATURES_OTHER
 FEATURES_ONE_OF_EACH_FOR_TESTING = [
     "bonus", "exercised_stock_options", "to_messages"
 ]
 FEATURES_TRY = ["shared_receipt_with_poi"]
+FEATURE_EMAIL = "email_address"  # cannot use this non-numerical feature  directly, will convert later
 
 features_list = ["poi"] + FEATURES_ALL
 pipeline_steps = []
@@ -110,6 +113,30 @@ if scaler:
 # processing because its bias on the data would be too strong).
 data_dict.pop("TOTAL", 0)
 data_dict.pop("THE TRAVEL AGENCY IN THE PARK", 0)
+
+# Task 3: Create new feature(s)
+
+print "Adding features..."
+from additional_features import EmailShares, PaymentsStockRatio, RelativeFeature, HasEnronEmailAddress
+for new_features in [
+        EmailShares(),
+        PaymentsStockRatio(),
+        HasEnronEmailAddress()
+]:
+    data_dict = new_features.extend(data_dict)
+    features_list.extend(new_features.new_feature_names())
+    for name in new_features.new_feature_names():
+        print " * added feature", name
+
+for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
+    # Assumes that the "total_" feature is the last in the list.
+    for feature in feature_list[:-1]:
+        new_feature = RelativeFeature(feature, feature_list[-1])
+        data_dict = new_feature.extend(data_dict)
+        features_list.extend(new_feature.new_feature_names())
+        print " * added feature", features_list[-1]
+
+# Remove outliers automatically.
 
 if args.remove_outliers:
     # Setting featureFormat()'s `sort_keys` parameter to true will break this!
@@ -143,26 +170,6 @@ if args.remove_outliers:
     # NOTE(Jonas): Including this into the pipeline is not yet possible
     # (without extending the API, which is beyond the scope of this project).
     # Will try to use this reasonably, probably after adding the new features.
-
-# TODO(Jonas): Try removing outliers after adding the relative features.
-
-# Task 3: Create new feature(s)
-
-print "Adding features..."
-from additional_features import EmailShares, PaymentsStockRatio, RelativeFeature
-for new_features in [EmailShares(), PaymentsStockRatio()]:
-    data_dict = new_features.extend(data_dict)
-    features_list.extend(new_features.new_feature_names())
-    for name in new_features.new_feature_names():
-        print " * added feature", name
-
-for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
-    # Assumes that the "total_" feature is the last in the list.
-    for feature in feature_list[:-1]:
-        new_feature = RelativeFeature(feature, feature_list[-1])
-        data_dict = new_feature.extend(data_dict)
-        features_list.extend(new_feature.new_feature_names())
-        print " * added feature", features_list[-1]
 
 # Visualize features
 # for feature1, feature2 in pairwise(features_list[1:]):

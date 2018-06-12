@@ -48,6 +48,25 @@ class RelativeFeature(NewFeature):
         return [self.feature_name]
 
 
+class HasEnronEmailAddress(NewFeature):
+    FEATURE_NAME = "has_enron_email_address"
+
+    def extend(self, data_dict):
+        """Extends the `data_dict` with a numerical email feature.
+
+        The feature takes values 1 or 0 indicating if the person has an
+        Enron email address or not.
+        """
+        for person, data in data_dict.iteritems():
+            email_address = data["email_address"]
+            data_dict[person][self.FEATURE_NAME] = (1 if email_address != "NaN"
+                                                    else 0)
+        return data_dict
+
+    def new_feature_names(self):
+        return [self.FEATURE_NAME]
+
+
 class EmailShares(NewFeature):
     FEATURE_1 = "emails_to_poi_share"
     FEATURE_2 = "emails_from_poi_share"
