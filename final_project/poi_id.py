@@ -113,6 +113,7 @@ if scaler:
 # processing because its bias on the data would be too strong).
 data_dict.pop("TOTAL", 0)
 data_dict.pop("THE TRAVEL AGENCY IN THE PARK", 0)
+data_dict.pop("LAY KENNETH L", 0)
 
 # Task 3: Create new feature(s)
 
