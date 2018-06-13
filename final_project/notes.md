@@ -423,8 +423,8 @@ Algorithm `GradientBoostingClassifier` seems to work best/fast with default sett
   * Accuracy: 0.82620  Precision: 0.32707  Recall: 0.28700  F1: 0.30573  F2: 0.29421
 * Select parameters with scoring function "recall". {'gradientboostingclassifier__max_features': None, 'gradientboostingclassifier__max_depth': 9, 'gradientboostingclassifier__subsample': 1.0, 'gradientboostingclassifier__n_estimators': 100, 'gradientboostingclassifier__loss': 'deviance'}
   * Accuracy: 0.82620  Precision: 0.32707  Recall: 0.28700  F1: 0.30573  F2: 0.29421
-* More grid values <<**TODO**>>
-  * No changes.
+* {'gradientboostingclassifier__criterion': 'friedman_mse', 'gradientboostingclassifier__max_depth': 8, 'gradientboostingclassifier__n_estimators': 50, 'gradientboostingclassifier__max_features': None, 'gradientboostingclassifier__subsample': 1.0, 'gradientboostingclassifier__loss': 'deviance'}
+  * Accuracy: 0.83427  Precision: 0.35518  Recall: 0.29800  F1: 0.32409  F2: 0.30791
 
 Recall still bad. Removing the travel agency does not seem to help, but it should be gone anyhow.
 
@@ -432,6 +432,142 @@ Recall still bad. Removing the travel agency does not seem to help, but it shoul
 
 1. Reflect on the whole thing.
 2. Read on RFECV and GradientBoostingClassifier.
-3. Review the new features: Should missing data points be NaN or 0? Maybe I changed this in the `featureFormat()` arguments. Visualize them!
-4. Try using RFECV as estimator like done by that other dude.
-5. Try feature scaling and outlier removal.
+3. Review the new features: Should missing data points be NaN or 0? Maybe I changed this in the `featureFormat()` arguments. Visualize them.
+4. Try feature scaling and outlier removal.
+5. Try using RFECV as estimator like done by that other dude.
+
+No findings on the NaN values. Changed the calls to `featureFormat()` back so that NaN are removed (except for outlier detection where we need a special structure of the data).
+
+Somehow the GridSearchCV became much slower, allthough I did not change anything that might influence the performance.
+
+* GradientBoostingClassifier, feature selection RFECV mit DecistionTreeClassifier, outlier removal after new features (selects just two features).
+  * Accuracy: 0.79791  Precision: 0.42894  Recall: 0.33650  F1: 0.37714  F2: 0.35166
+* GradientBoostingClassifier, feature selection RFECV mit DecistionTreeClassifier, outlier removal after new features (selects just two features).{'gradientboostingclassifier__max_features': None, 'gradientboostingclassifier__max_depth': 8, 'gradientboostingclassifier__n_estimators': 40, 'gradientboostingclassifier__criterion': 'friedman_mse', 'gradientboostingclassifier__loss': 'deviance'}
+  * Accuracy: 0.81609  Precision: 0.49463  Recall: 0.53000  F1: 0.51171  F2: 0.52253
+* Same, but with p68.5 instead of RFECV feature selection and parameter choosing.
+  * Accuracy: 0.81964  Precision: 0.33354  Recall: 0.26300  F1: 0.29410  F2: 0.27462
+
+### 2018-06-10
+
+Tried the setup from the forum with a variation of my preprocessing steps:
+
+```sh
+python poi_id.py --algorithm=gradient_boosting  --remove-outliers && time python tester.py
+  [...]
+  RFECV(cv=StratifiedShuffleSplit(n_splits=5, random_state=42, test_size=0.3,
+            train_size=None),
+   estimator=GradientBoostingClassifier(criterion='friedman_mse', init=None,
+              learning_rate=0.1, loss='deviance', max_depth=7,
+              max_features='sqrt', max_leaf_nodes=None,
+              min_impurity_decrease=0.0, min_impurity_split=None,
+              min_samples_leaf=15, min_samples_split=75,
+              min_weight_fraction_leaf=0.0, n_estimators=75,
+              presort='auto', random_state=None, subsample=0.8, verbose=0,
+              warm_start=False),
+   n_jobs=1, scoring=None, step=1, verbose=0)
+    Accuracy: 0.84707    Precision: 0.39648    Recall: 0.13500    F1: 0.20142    F2: 0.15551
+
+python poi_id.py --algorithm=gradient_boosting && time python tester.py
+  [...]
+  RFECV(cv=StratifiedShuffleSplit(n_splits=5, random_state=42, test_size=0.3,
+            train_size=None),
+   estimator=GradientBoostingClassifier(criterion='friedman_mse', init=None,
+              learning_rate=0.1, loss='deviance', max_depth=7,
+              max_features='sqrt', max_leaf_nodes=None,
+              min_impurity_decrease=0.0, min_impurity_split=None,
+              min_samples_leaf=15, min_samples_split=75,
+              min_weight_fraction_leaf=0.0, n_estimators=75,
+              presort='auto', random_state=None, subsample=0.8, verbose=0,
+              warm_start=False),
+   n_jobs=1, scoring=None, step=1, verbose=0)
+    Accuracy: 0.86007    Precision: 0.43038    Recall: 0.15300    F1: 0.22575    F2: 0.17564
+
+```
+
+Performance not really better.
+
+#### Next steps (8)
+
+* Use feature "email_address" if possible, or convert to numerical "has_enron_email_address" in {0, 1}.
+* Review my first experiments. Why was the performance so much better? Was it just the usage of different `train_test_split()`?
+
+### 2018-06-12
+
+Added email feature. Consider Kenneth Lay as outlier and drop him from the data.
+
+Try with and without additional outlier removal. Try with robust feature scaling:
+
+```sh
+python poi_id.py --algorithm=gradient_boosting --feature-selection=p68.5 --remove-outliers && time python tester.py
+  Pipeline(memory=None,
+     steps=[('selectpercentile', SelectPercentile(percentile=68.5,
+         score_func=<function f_classif at 0x7fc5649c98c0>)), ('gradientboostingclassifier', GradientBoostingClassifier(criterion='friedman_mse', init=None,
+              learning_rate=0.1, loss='deviance', max_depth=3,
+              max_...         presort='auto', random_state=1, subsample=1.0, verbose=0,
+              warm_start=False))])
+    Accuracy: 0.84093    Precision: 0.38684    Recall: 0.19400    F1: 0.25841    F2: 0.21548
+
+python poi_id.py --algorithm=gradient_boosting --feature-selection=p68.5  && time python tester.py
+Pipeline(memory=None,
+     steps=[('selectpercentile', SelectPercentile(percentile=68.5,
+         score_func=<function f_classif at 0x7fbec21728c0>)), ('gradientboostingclassifier', GradientBoostingClassifier(criterion='friedman_mse', init=None,
+              learning_rate=0.1, loss='deviance', max_depth=3,
+              max_...         presort='auto', random_state=1, subsample=1.0, verbose=0,
+              warm_start=False))])
+    Accuracy: 0.84840    Precision: 0.36355    Recall: 0.18250    F1: 0.24301    F2: 0.20269
+
+python poi_id.py --algorithm=gradient_boosting --feature-selection=p68.5 --feature-scaling=robust && time python tester.py
+  Pipeline(memory=None,
+     steps=[('robustscaler', RobustScaler(copy=True, quantile_range=(25.0, 75.0), with_centering=True,
+       with_scaling=True)), ('selectpercentile', SelectPercentile(percentile=68.5,
+         score_func=<function f_classif at 0x7fc9e90db8c0>)), ('gradientboostingclassifier', GradientBoostingClassifier...         presort='auto', random_state=1, subsample=1.0, verbose=0,
+              warm_start=False))])
+    Accuracy: 0.84847    Precision: 0.36418    Recall: 0.18300    F1: 0.24359    F2: 0.20322
+```
+
+Feature scaling seems to make almost no difference for GradientBoosting.
+
+DecisionTreeClassifier with all features comes quite close to the require .3 precision and recall. Could be fine-tuned to reach it.
+
+AdaBoost is around .2, not very good. Probably needs more tuning.
+
+LinearSVM reached the requirements:
+
+```sh
+python poi_id.py --algorithm=linear_svc --feature-scaling=normal && time python tester.py
+  Pipeline(memory=None,
+     steps=[('standardscaler', StandardScaler(copy=True, with_mean=True, with_std=True)), ('linearsvc', LinearSVC(C=1.0, class_weight=None, dual=False, fit_intercept=True,
+     intercept_scaling=1, loss='squared_hinge', max_iter=1000,
+     multi_class='ovr', penalty='l2', random_state=1, tol=0.0001,
+     verbose=0))])
+    Accuracy: 0.83140    Precision: 0.35710    Recall: 0.33050    F1: 0.34329    F2: 0.33550
+
+python poi_id.py --algorithm=linear_svc --feature-scaling=robust && time python tester.py
+  Pipeline(memory=None,
+     steps=[('robustscaler', RobustScaler(copy=True, quantile_range=(25.0, 75.0), with_centering=True,
+       with_scaling=True)), ('linearsvc', LinearSVC(C=1.0, class_weight=None, dual=False, fit_intercept=True,
+     intercept_scaling=1, loss='squared_hinge', max_iter=1000,
+     multi_class='ovr', penalty='l2', random_state=1, tol=0.0001,
+     verbose=0))])
+    Accuracy: 0.80973    Precision: 0.24704    Recall: 0.20850    F1: 0.22614    F2: 0.21521
+
+python poi_id.py --algorithm=linear_svc --feature-scaling=normal --remove-outliers && time python tester.py
+  Pipeline(memory=None,
+     steps=[('standardscaler', StandardScaler(copy=True, with_mean=True, with_std=True)), ('linearsvc', LinearSVC(C=1.0, class_weight=None, dual=False, fit_intercept=True,
+     intercept_scaling=1, loss='squared_hinge', max_iter=1000,
+     multi_class='ovr', penalty='l2', random_state=1, tol=0.0001,
+     verbose=0))])
+    Accuracy: 0.82229    Precision: 0.37776    Recall: 0.37700    F1: 0.37738    F2: 0.37715
+
+Checked some more variations, none performs similar.
+```
+
+The SVM with linear kernel, linear feature scaling and removal of additional 5% outliers and using all available features seems to work best. Will stop to search for alternatives, this is good enough and the search, on the other hand, will consume an arbitrary amount of time.
+
+#### Next steps (9)
+
+1. Finalize the code: Make grid search controllable by parameter.
+2. Do some parameter tuning for the best values on SVC.
+3. Unleash the random seed.
+4. Clean code and submit.
+5. Think about why SVM with RBF kernel does not work here.
