@@ -13,8 +13,7 @@ sys.path.append("../tools/")
 from feature_format import featureFormat, targetFeatureSplit
 from tester import dump_classifier_and_data
 
-# TODO(Jonas): Randomize the seed.
-SEED = 1
+SEED = None
 
 
 def plot_two_features(data_dict, feature1, feature2, annotate=False):
