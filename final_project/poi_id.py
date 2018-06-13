@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import sys
+import re
 import argparse
 import pickle
 import copy
@@ -38,7 +39,12 @@ def pairwise(iterable):
     return izip(a, b)
 
 
-# TODO(Jonas): Set reasonable defaults here when cleaning up. Whatever performs best.
+def step_name(algorithm):
+    pattern = re.compile(r"(\w+)\(")
+    algorithm_name = pattern.match(str(main_algorithm)).group(1).lower()
+    return algorithm_name
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--algorithm",
@@ -56,6 +62,7 @@ parser.add_argument(
     "--feature-selection",
     choices=[None, "kbest", "p68.5", "RFECV", "linear_model"],
     default=None)
+parser.add_argument("--perform-parameter-search", action="store_true")
 args = parser.parse_args()
 
 # Task 1: Select what features you'll use.
@@ -93,18 +100,18 @@ with open("final_project_dataset.pkl", "r") as data_file:
 
 # Scale the features (with robustness too outliers, which we remove later on).
 from sklearn.preprocessing import StandardScaler, RobustScaler
-scaler = None
+feature_scaler = None
 if args.feature_scaling == "normal":
-    scaler = StandardScaler()
+    feature_scaler = StandardScaler()
 elif args.feature_scaling == "robust":
-    scaler = RobustScaler()
-if scaler:
-    pipeline_steps.append(scaler)
+    feature_scaler = RobustScaler()
+if feature_scaler:
+    pipeline_steps.append(feature_scaler)
 
 # Validation of scaling:
 # from custom_validation import validate_scaling
 # original_data_dict = copy.deepcopy(data_dict)
-# data_dict = scaler.fit_transform(data_dict)  # needs to work on ndarray instead of list
+# data_dict = feature_scaler.fit_transform(data_dict)  # needs to work on ndarray instead of list
 # validate_scaling(original_data_dict, data_dict)
 
 # Task 2: Remove outliers
@@ -138,7 +145,6 @@ for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
         print " * added feature", features_list[-1]
 
 # Remove outliers automatically.
-
 if args.remove_outliers:
     # Setting featureFormat()'s `sort_keys` parameter to true will break this!
     data = featureFormat(
@@ -277,57 +283,61 @@ clf = make_pipeline(*pipeline_steps)
 # folder for details on the evaluation method, especially the test_classifier
 # function.
 
-# Search best parameters.
-from sklearn.model_selection import GridSearchCV
-parameter_grid = {
-    "gradientboostingclassifier__criterion": ["friedman_mse", "mae"],
-    "gradientboostingclassifier__loss": ["deviance", "exponential"],
-    "gradientboostingclassifier__n_estimators":
-    [10, 50, 90, 100, 120, 150, 200],
-    "gradientboostingclassifier__max_depth": [1, 3, 6, 8, 9, 10, 12, 15, 20],
-    "gradientboostingclassifier__max_features": [None, "sqrt", "log2", 0.9],
-    "gradientboostingclassifier__subsample": [0.5, 0.8, 0.9, 1.]
-}
-# Validate the parameter grid:
-for key in parameter_grid.keys():
-    if key not in clf.get_params():
-        raise Exception(
-            "'{}' is not among the parameters of your algorithm, which are {}".
-            format(key, ",".join(clf.get_params())))
-# Optimize for f1 score brings good combination of precision and recall.
-scoring_function = "f1"
-scoring_function = "recall"
-param_search = GridSearchCV(
-    estimator=clf,
-    param_grid=parameter_grid,
-    cv=sss,
-    scoring=scoring_function,
-    n_jobs=2)
-param_search.fit(features, labels)
-# print param_search.cv_results_
-print "Best estimator:", param_search.best_estimator_
-print "Best parameters:", param_search.best_params_
-print "Score({}):".format(scoring_function), param_search.best_score_
+import custom_param_grids
+if args.perform_parameter_search:  # Search best parameters.
 
-with open("cv_results.pkl", "wb") as file:
-    pickle.dump(param_search.cv_results_, file)
+    parameter_grid = {}
+    name = step_name(main_algorithm)
+    parameter_grid.update(custom_param_grids.get_param_grid(name))
+    if feature_scaler:
+        name = step_name(feature_scaler)
+        parameter_grid.update(custom_param_grids.get_param_grid(name))
 
-# The result could be used as classifier right away. However, the code in
-# `tester.py` fits it to the data several times. This means evaluation
-# takes very long when presented with the GridSearch+StratifiedShuffleSplit(n=5)
-# classifier. Thus, we extract the best found parameter and store it as classifier.
-clf = param_search.best_estimator_
+    # Validate the parameter grid:
+    for key in parameter_grid.keys():
+        if key not in clf.get_params():
+            raise Exception(
+                "'{}' is not among the parameters of your algorithm, which are {}".
+                format(key, ",".join(clf.get_params())))
+
+    # Optimization for f1 score brings good mix of precision and recall.
+    scoring_function = "f1"
+    # scoring_function = "recall"
+    from sklearn.model_selection import GridSearchCV
+    param_search = GridSearchCV(
+        estimator=clf,
+        param_grid=parameter_grid,
+        cv=sss,
+        scoring=scoring_function,
+        n_jobs=2)
+    param_search.fit(features, labels)
+    print "Best estimator:", param_search.best_estimator_
+    print "Best parameters:", param_search.best_params_
+    print "Score({}): {}".format(scoring_function, param_search.best_score_)
+
+    # The result could be used as classifier right away. However, the code in
+    # `tester.py` fits it to the data several times. This means evaluation
+    # takes very long when presented with the GridSearch+StratifiedShuffleSplit(n=5)
+    # classifier. Thus, we extract the best found parameter and store it as classifier.
+    clf = param_search.best_estimator_
+else:  # no grid search for parameters
+    name = step_name(main_algorithm)
+    best_params = custom_param_grids.get_best_parameter_set(name)
+    if feature_scaler:
+        name = step_name(feature_scaler)
+        best_params.update(custom_param_grids.get_best_parameter_set(name))
+    clf.set_params(**best_params)
 
 # Apply it on the whole data to get an idea of the other metrics (using multiple
 # scoring functions in the GridSearch + refit parameter will repeat the search
 # for all scoring functions, but not yield the other scores for the one selected
 # for fitting).
-predictions = clf.predict(features)
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-print "Accuracy:", accuracy_score(labels, predictions)
-print "Precision:", precision_score(labels, predictions)
-print "Recall:", recall_score(labels, predictions)
-print "f1_score:", f1_score(labels, predictions)
+# predictions = clf.predict(features)
+# from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+# print "Accuracy:", accuracy_score(labels, predictions)
+# print "Precision:", precision_score(labels, predictions)
+# print "Recall:", recall_score(labels, predictions)
+# print "f1_score:", f1_score(labels, predictions)
 
 # Task 6: Dump your classifier, dataset, and features_list so anyone can
 # check your results. You do not need to change anything below, but make sure

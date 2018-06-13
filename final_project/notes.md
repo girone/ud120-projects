@@ -571,3 +571,11 @@ The SVM with linear kernel, linear feature scaling and removal of additional 5% 
 3. Unleash the random seed.
 4. Clean code and submit.
 5. Think about why SVM with RBF kernel does not work here.
+
+### 2018-06-13
+
+Set default parameters so that someone calling just `python poi_id.py` will get the my selected algorithm and parameter combination.
+
+Unleashed the random seed, results do not vary for my choices.
+
+Added parameter for enabling GridSearch. Added new module for returning predefined parameter grids as well as the best found parameter sets.
