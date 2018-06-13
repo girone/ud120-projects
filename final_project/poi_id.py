@@ -47,10 +47,11 @@ parser.add_argument(
         "logistic_regression", "ada_boost", "gradient_boosting",
         "random_forest", "gaussian_process", "stochastic_gradient_descent",
         "multi_layer_perceptron"
-    ])
+    ],
+    default="linear_svc")
 parser.add_argument("--remove-outliers", action="store_true")
 parser.add_argument(
-    "--feature-scaling", choices=["normal", "robust"], default=None)
+    "--feature-scaling", choices=["normal", "robust"], default="normal")
 parser.add_argument(
     "--feature-selection",
     choices=[None, "kbest", "p68.5", "RFECV", "linear_model"],
