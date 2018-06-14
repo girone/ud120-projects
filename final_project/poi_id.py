@@ -59,7 +59,9 @@ parser.add_argument(
     default="linear_svc")
 parser.add_argument("--remove-outliers", action="store_true")
 parser.add_argument(
-    "--feature-scaling", choices=["normal", "robust"], default="normal")
+    "--feature-scaling",
+    choices=["minmax", "normal", "robust"],
+    default="normal")
 parser.add_argument(
     "--feature-selection",
     choices=[None, "kbest", "p68.5", "RFECV", "linear_model"],
@@ -101,9 +103,11 @@ with open("final_project_dataset.pkl", "r") as data_file:
     data_dict = pickle.load(data_file)
 
 # Scale the features (with robustness too outliers, which we remove later on).
-from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
 feature_scaler = None
-if args.feature_scaling == "normal":
+if args.feature_scaling == "minmax":
+    feature_scaler = MinMaxScaler()
+elif args.feature_scaling == "normal":
     feature_scaler = StandardScaler()
 elif args.feature_scaling == "robust":
     feature_scaler = RobustScaler()
