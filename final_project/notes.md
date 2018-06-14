@@ -579,3 +579,8 @@ Set default parameters so that someone calling just `python poi_id.py` will get 
 Unleashed the random seed, results do not vary for my choices.
 
 Added parameter for enabling GridSearch. Added new module for returning predefined parameter grids as well as the best found parameter sets.
+
+#### Final steps
+
+1. One last try: Recursive feature elimination with linear SVM + parameters.
+2. Write the `report.md`.
