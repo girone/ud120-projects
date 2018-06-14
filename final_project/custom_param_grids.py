@@ -28,7 +28,12 @@ GRIDS = {
 
 
 def get_param_grid(algorithm):
-    return GRIDS[algorithm]
+    try:
+        grid = GRIDS[algorithm]
+    except KeyError:
+        print "WARNING: No parameter grid for algorithm '{}' found".format(algorithm)
+        grid = {}
+    return grid
 
 
 BEST_KNOWN_PARAMETERS = {
