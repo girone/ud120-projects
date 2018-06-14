@@ -255,6 +255,10 @@ if best_params:
 from sklearn.model_selection import StratifiedShuffleSplit
 sss = StratifiedShuffleSplit(n_splits=10, test_size=0.3, random_state=SEED)
 
+# Optimization for f1 score brings good mix of precision and recall.
+scoring_function = "f1"
+# scoring_function = "recall"
+
 # Setup feature selection
 from sklearn.feature_selection import SelectKBest, SelectPercentile, RFECV, SelectFromModel
 feature_selector = args.feature_selection
@@ -263,20 +267,21 @@ if args.feature_selection == "kbest":
 elif args.feature_selection == "p68.5":
     feature_selector = SelectPercentile(percentile=68.5)
 elif args.feature_selection == "RFECV":
-    from sklearn.tree import DecisionTreeClassifier
+    # from sklearn.tree import DecisionTreeClassifier
     # estimator = DecisionTreeClassifier(criterion="entropy", random_state=SEED)
     # estimator = LinearSVC()
     estimator = main_algorithm
-    feature_selector = RFECV(estimator, cv=sss)
+    # TODO(Jonas): Have separate CV here, more folds!
+    feature_selector = RFECV(estimator, cv=sss, scoring=scoring_function)
 elif args.feature_selection == "linear_model":
     feature_selector = SelectFromModel(
         LinearSVC(penalty="l1", dual=False, random_state=SEED))
 if feature_selector:
-    # NOTE(Jonas): Disabled because running RFE-CV does not make sense in the
-    # tester.py, only slows it down. We rather restrict the features of the
-    # input to what we found best.
-    # pipeline_steps.append(feature_selector)
     print "Feature selection..."
+    # NOTE(Jonas): Disabled because running RFE-CV does not make sense in the
+    # pipeline which is used in tester.py, only slows it down. We rather
+    # restrict the features of the input to what we find works best below.
+    # pipeline_steps.append(feature_selector)
     data = featureFormat(data_dict, features_list, sort_keys=True)
     labels, features = targetFeatureSplit(data)
     feature_selector.fit(features, labels)
@@ -319,9 +324,6 @@ if args.perform_parameter_search:
                 "'{}' is not among the parameters of your algorithm, which are {}".
                 format(key, ",".join(clf.get_params())))
 
-    # Optimization for f1 score brings good mix of precision and recall.
-    scoring_function = "f1"
-    # scoring_function = "recall"
     from sklearn.model_selection import GridSearchCV
     param_search = GridSearchCV(
         estimator=clf,

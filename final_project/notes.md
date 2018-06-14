@@ -584,3 +584,24 @@ Added parameter for enabling GridSearch. Added new module for returning predefin
 
 1. One last try: Recursive feature elimination with linear SVM + parameters.
 2. Write the `report.md`.
+3. Review code documentation and style. Just get the basics straight.
+
+### 2018-06-14
+
+Created scaffold for the report. Added MinMax-scaler.
+
+While giving RFE a last try, found that it also handles the `scoring` parameter. Passing the same function `"f1"` now as for `GridSearchCV`. This, for the first time, yields a reasonable subset of features and has > .3 precision and recall:
+
+```sh
+python poi_id.py --feature-selection=RFECV && time python tester.py
+
+Selected features: ['poi', 'salary', 'bonus', 'long_term_incentive', 'deferred_income', 'deferral_payments', 'other', 'director_fees', 'expenses', 'total_payments', 'exercised_stock_options', 'restricted_stock', 'restricted_stock_deferred', 'total_stock_value', 'to_messages', 'from_poi_to_this_person', 'from_messages', 'from_this_person_to_poi', 'shared_receipt_with_poi', 'total_payments_to_stock_value_ratio', 'has_enron_email_address', 'relative_restricted_stock']
+
+Pipeline(memory=None,
+     steps=[('standardscaler', StandardScaler(copy=True, with_mean=True, with_std=True)), ('linearsvc', LinearSVC(C=200, class_weight=None, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss='hinge', max_iter=1000, multi_class='ovr',
+     penalty='l2', random_state=None, tol=0.0001, verbose=0))])
+    Accuracy: 0.81220    Precision: 0.32107    Recall: 0.36650    F1: 0.34228    F2: 0.35641
+```
+
+However, the next run had really bad results again. Maybe the CV setting needs to be separate for this one. Might need many more folds to find a stable set of features.
