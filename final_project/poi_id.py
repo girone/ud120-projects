@@ -43,7 +43,7 @@ def pairwise(iterable):
 
 def step_name(algorithm):
     pattern = re.compile(r"(\w+)\(")
-    algorithm_name = pattern.match(str(main_algorithm)).group(1).lower()
+    algorithm_name = pattern.match(str(algorithm)).group(1).lower()
     return algorithm_name
 
 
