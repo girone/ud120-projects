@@ -14,6 +14,8 @@ sys.path.append("../tools/")
 from feature_format import featureFormat, targetFeatureSplit
 from tester import dump_classifier_and_data
 
+import custom_param_grids
+
 SEED = None
 
 
@@ -106,6 +108,11 @@ if args.feature_scaling == "normal":
 elif args.feature_scaling == "robust":
     feature_scaler = RobustScaler()
 if feature_scaler:
+    name = step_name(feature_scaler)
+    best_scaler_params = custom_param_grids.get_best_parameter_set(
+        name, do_prefix=False)
+    if best_scaler_params:
+        feature_scaler.set_params(**best_scaler_params)
     pipeline_steps.append(feature_scaler)
 
 # Validation of scaling:
@@ -198,6 +205,7 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.ensemble import AdaBoostClassifier, GradientBoostingClassifier, RandomForestClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.neural_network import MLPClassifier
+
 # Select and initialize algorithm
 algorithm = args.algorithm
 if algorithm == "naive_bayes":
@@ -225,6 +233,12 @@ elif algorithm == "multi_layer_perceptron":
 else:
     print "Unknown algorithm", algorithm
     exit(1)
+
+# Load the best known parameter set (if any).
+name = step_name(main_algorithm)
+best_params = custom_param_grids.get_best_parameter_set(name, do_prefix=False)
+if best_params:
+    main_algorithm.set_params(**best_params)
 
 # Setup PCA
 # from sklearn.decomposition import PCA
@@ -283,8 +297,9 @@ clf = make_pipeline(*pipeline_steps)
 # folder for details on the evaluation method, especially the test_classifier
 # function.
 
-import custom_param_grids
-if args.perform_parameter_search:  # Search best parameters.
+if args.perform_parameter_search:
+    # Search best parameters. This overrides the best known parameter sets
+    # loaded above, if any.
 
     parameter_grid = {}
     name = step_name(main_algorithm)
@@ -320,13 +335,6 @@ if args.perform_parameter_search:  # Search best parameters.
     # takes very long when presented with the GridSearch+StratifiedShuffleSplit(n=5)
     # classifier. Thus, we extract the best found parameter and store it as classifier.
     clf = param_search.best_estimator_
-else:  # no grid search for parameters
-    name = step_name(main_algorithm)
-    best_params = custom_param_grids.get_best_parameter_set(name)
-    if feature_scaler:
-        name = step_name(feature_scaler)
-        best_params.update(custom_param_grids.get_best_parameter_set(name))
-    clf.set_params(**best_params)
 
 # Apply it on the whole data to get an idea of the other metrics (using multiple
 # scoring functions in the GridSearch + refit parameter will repeat the search

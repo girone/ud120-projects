@@ -31,31 +31,44 @@ def get_param_grid(algorithm):
     return GRIDS[algorithm]
 
 
-BEST_FOUND_PARAMETERS = {
+BEST_KNOWN_PARAMETERS = {
     "gradientboostingclassifier": {
-        "gradientboostingclassifier__criterion": "friedman_mse",
-        "gradientboostingclassifier__max_depth": 8,
-        "gradientboostingclassifier__n_estimators": 50,
-        "gradientboostingclassifier__max_features": None,
-        "gradientboostingclassifier__subsample": 1.0,
-        "gradientboostingclassifier__loss": "deviance"
+        "criterion": "friedman_mse",
+        "max_depth": 8,
+        "n_estimators": 50,
+        "max_features": None,
+        "subsample": 1.0,
+        "loss": "deviance"
     },
     "linearsvc": {
-        'linearsvc__C': 200,
-        'linearsvc__fit_intercept': True,
-        'linearsvc__max_iter': 1000,
-        'linearsvc__penalty': 'l2',
-        'linearsvc__class_weight': None,
-        'linearsvc__multi_class': 'ovr',
-        'linearsvc__dual': True,
-        'linearsvc__verbose': 0,
-        'linearsvc__tol': 0.0001,
-        'linearsvc__intercept_scaling': 1,
-        'linearsvc__random_state': None,
-        'linearsvc__loss': 'hinge'
+        'C': 200,
+        'fit_intercept': True,
+        'max_iter': 1000,
+        'penalty': 'l2',
+        'class_weight': None,
+        'multi_class': 'ovr',
+        'dual': True,
+        'verbose': 0,
+        'tol': 0.0001,
+        'intercept_scaling': 1,
+        'random_state': None,
+        'loss': 'hinge'
     }
 }
 
 
-def get_best_parameter_set(algorithm):
-    return BEST_FOUND_PARAMETERS[algorithm]
+def get_best_parameter_set(algorithm, do_prefix=True):
+    """Returns the best known parameter set for an algorithm.
+
+    Args:
+        `do_prefix`: Include the algorithm prefix or not.
+    """
+    try:
+        params = BEST_KNOWN_PARAMETERS[algorithm]
+    except KeyError:
+        params = {}
+    key_prefix = (algorithm + "__") if do_prefix else ""
+    return {
+        key_prefix + param: value
+        for param, value in params.items()
+    }
