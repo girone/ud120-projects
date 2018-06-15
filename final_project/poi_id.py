@@ -255,7 +255,7 @@ if best_params:
 # The rationale of stratification is that the relative frequencies of class labels
 # (POI or not POI) should be the same in training and test set as in the whole data.
 from sklearn.model_selection import StratifiedShuffleSplit
-sss = StratifiedShuffleSplit(n_splits=10, test_size=0.3, random_state=SEED)
+sss = StratifiedShuffleSplit(n_splits=100, test_size=0.3, random_state=SEED)
 
 # Optimization for f1 score brings good mix of precision and recall.
 scoring_function = "f1"
@@ -271,13 +271,14 @@ elif args.feature_selection == "p68.5":
 elif args.feature_selection == "RFECV":
     # from sklearn.tree import DecisionTreeClassifier
     # estimator = DecisionTreeClassifier(criterion="entropy", random_state=SEED)
-    # estimator = LinearSVC()
+    # estimator = LinearSVC(
+    #     **custom_param_grids.get_best_parameter_set(
+    #         "linearsvc", do_prefix=False))
     estimator = main_algorithm
-    # TODO(Jonas): Have separate CV here, more folds!
     feature_selector = RFECV(estimator, cv=sss, scoring=scoring_function)
 elif args.feature_selection == "linear_model":
     feature_selector = SelectFromModel(
-        LinearSVC(penalty="l1", dual=False, random_state=SEED))
+        LinearSVC(penalty="l2", dual=True, random_state=SEED))
 if feature_selector:
     print "Feature selection..."
     # NOTE(Jonas): Disabled because running RFE-CV does not make sense in the
@@ -346,7 +347,7 @@ if args.perform_parameter_search:
 
     # The result could be used as classifier right away. However, the code in
     # `tester.py` fits it to the data several times. This means evaluation
-    # takes very long when presented with the GridSearch+StratifiedShuffleSplit(n=5)
+    # takes very long when presented with the GridSearch+StratifiedShuffleSplit(n=>5)
     # classifier. Thus, we extract the best found parameter and store it as classifier.
     clf = param_search.best_estimator_
 
