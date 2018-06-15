@@ -17,6 +17,7 @@ from tester import dump_classifier_and_data
 import custom_param_grids
 
 SEED = None
+PCA_DIMENSIONALITY_REDUCE = 0.75
 
 
 def plot_two_features(data_dict, feature1, feature2, annotate=False):
@@ -62,6 +63,7 @@ parser.add_argument(
     "--feature-scaling",
     choices=["minmax", "normal", "robust"],
     default="normal")
+parser.add_argument("--perform-PCA", action="store_true")
 parser.add_argument(
     "--feature-selection",
     choices=[None, "kbest", "p68.5", "RFECV", "linear_model"],
@@ -244,10 +246,6 @@ best_params = custom_param_grids.get_best_parameter_set(name, do_prefix=False)
 if best_params:
     main_algorithm.set_params(**best_params)
 
-# Setup PCA
-# from sklearn.decomposition import PCA
-# pca = PCA(n_components=len(features_list) // 2)
-
 # Use StratifiedShuffleSplit instead of default StratifiedKFold for cross validation:
 # See notes.md for a summary of the article at scikit-learn.org on cross validaiton.
 # The rationale of stratification is that the relative frequencies of class labels
@@ -292,6 +290,12 @@ if feature_selector:
     # Filter data_dict by changing the feature list:
     features_list = ["poi"] + selected_features
 print "Selected features:", features_list
+
+# Setup PCA
+if args.perform_PCA:
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=int(PCA_DIMENSIONALITY_REDUCE * len(features_list)))
+    pipeline_steps.append(pca)
 
 # Recreate from new data set
 data = featureFormat(data_dict, features_list, sort_keys=True)
