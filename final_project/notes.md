@@ -605,3 +605,23 @@ Pipeline(memory=None,
 ```
 
 However, the next run had really bad results again. Maybe the CV setting needs to be separate for this one. Might need many more folds to find a stable set of features.
+
+Increased `n_splits` to 100, did GridSearchCV again:
+
+```sh
+python poi_id.py --feature-selection=RFECV --perform-parameter-search && time python tester.py
+
+Pipeline(memory=None,
+     steps=[('standardscaler', StandardScaler(copy=True, with_mean=True, with_std=True)), ('linearsvc', LinearSVC(C=20, class_weight=None, dual=True, fit_intercept=True,
+     intercept_scaling=1, loss='squared_hinge', max_iter=1000,
+     multi_class='ovr', penalty='l2', random_state=None, tol=0.0001,
+     verbose=0))])
+    Accuracy: 0.81627    Precision: 0.35257    Recall: 0.45200    F1: 0.39614    F2: 0.42787
+```
+
+Finally tried PCA again, still not improvements.
+
+Wrote most the report.
+
+### 2018-06-15
+
