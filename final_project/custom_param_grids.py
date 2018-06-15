@@ -31,7 +31,8 @@ def get_param_grid(algorithm):
     try:
         grid = GRIDS[algorithm]
     except KeyError:
-        print "WARNING: No parameter grid for algorithm '{}' found".format(algorithm)
+        print "WARNING: No parameter grid for algorithm '{}' found".format(
+            algorithm)
         grid = {}
     return grid
 
@@ -46,18 +47,18 @@ BEST_KNOWN_PARAMETERS = {
         "loss": "deviance"
     },
     "linearsvc": {
-        'C': 200,
-        'fit_intercept': True,
-        'max_iter': 1000,
-        'penalty': 'l2',
-        'class_weight': None,
-        'multi_class': 'ovr',
-        'dual': True,
-        'verbose': 0,
-        'tol': 0.0001,
-        'intercept_scaling': 1,
-        'random_state': None,
-        'loss': 'hinge'
+        "C": 200,
+        "fit_intercept": True,
+        "max_iter": 1000,
+        "penalty": "l2",
+        "class_weight": None,
+        "multi_class": "ovr",
+        "dual": True,
+        "verbose": 0,
+        "tol": 0.0001,
+        "intercept_scaling": 1,
+        "random_state": None,
+        "loss": "hinge"
     }
 }
 
@@ -73,7 +74,4 @@ def get_best_parameter_set(algorithm, do_prefix=True):
     except KeyError:
         params = {}
     key_prefix = (algorithm + "__") if do_prefix else ""
-    return {
-        key_prefix + param: value
-        for param, value in params.items()
-    }
+    return {key_prefix + param: value for param, value in params.items()}

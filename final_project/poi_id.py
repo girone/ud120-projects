@@ -103,6 +103,10 @@ pipeline_steps = []
 # Load the dictionary containing the dataset
 with open("final_project_dataset.pkl", "r") as data_file:
     data_dict = pickle.load(data_file)
+    print "No. data points:", len(data_dict.keys())
+    print "No. POIs:", sum([1 for k, v in data_dict.items() if v["poi"] == 1])
+    print "No. features:", len(data_dict.values()[0])
+    print "Features:", ", ".join([k for k in data_dict.values()[0].keys()])
 
 # Scale the features (with robustness too outliers, which we remove later on).
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
