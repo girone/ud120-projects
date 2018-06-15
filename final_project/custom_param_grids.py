@@ -41,7 +41,7 @@ BEST_KNOWN_PARAMETERS = {
     "gradientboostingclassifier": {
         "criterion": "friedman_mse",
         "max_depth": 8,
-        "n_estimators": 50,
+        "n_estimators": 100,
         "max_features": None,
         "subsample": 1.0,
         "loss": "deviance"
