@@ -1,13 +1,6 @@
 # Project Report: Identify Fraud from Enron Email
 
-*TODO(Jonas):*
-
-1. Summarize the task.
-2. In feature selection, report feature scores. How to do this for RFECV?
-3. In parameter tuning, explain which parameters were tuned (and what they mean).
-4. In evaluation, explain what the metrics mean (e.g. give the total numbers for one example).
-5. PCA
-6. Bag of words + tf.idf and search for a comparison metric.
+This project evolves around the Enron scandal. The goal is to train a classifier on financial and email data and to use it to detect persons involved in the fraud case.
 
 ## Data exploration
 
@@ -32,7 +25,45 @@ The email address feature maybe gives a clue if a person is actually an Enron em
 
 Some algorithms benefit from scaled features, for example SVMs. I added `--feature-scaling` to `poi_id.py` which can select between normal Gaussian scaling with mean and stddev, outlier robust scaling and no scaling at all. It turned out that for algorithms which do require scaled features, `--feature-scaling=normal` gave the best results.
 
-I tested the algorithms with different subsets of these 36 features. I added the argument `--feature-selection` to the script. It allows to switch between all features, selection of the k best, the best 68.5%, feature selection by `LinearModel(LinearSVC())` or feature selection by recursively eliminating irrelevant features using cross validation (`RFECV`). The latter will use the selected algorithm itself as internal estimator, or if that is not applicable, a `DecisionTreeClassifier` and a scoring function that corresponded to the one used when training the algorithm, which was typically `"f1"`. The best results have been achieved by `--feature-selection=RFECV` or no feature selection at all.
+I tested the algorithms with different subsets of these 36 features. I added the argument `--feature-selection` to the script. It allows to switch between all features, selection of the k best, the best 68.5%, feature selection by `LinearModel(LinearSVC())` or feature selection by recursively eliminating irrelevant features using cross validation (`RFECV`). The latter will use the selected algorithm itself as internal estimator, or if that is not applicable, a `DecisionTreeClassifier` and a scoring function that corresponded to the one used when training the algorithm, which was typically `"f1"`. The best results have been achieved by `--feature-selection=RFECV` or no feature selection at all. Here is an examplary output of the feature selection:
+
+|rank|importance|feature|selected?|
+|----|----------|-------|---------|
+| 1.| 23.389828822 | relative_bonus | selected |
+| 2.| 16.8003517636 | exercised_stock_options | selected |
+| 3.| 16.3125076135 | total_stock_value | selected |
+| 4.| 15.282789091 | relative_long_term_incentive | selected |
+| 5.| 14.0800023887 | emails_to_poi_share | selected |
+| 6.| 13.9542854043 | bonus | selected |
+| 7.| 12.3815615903 | salary | selected |
+| 8.| 11.8497813806 | deferred_income | selected |
+| 9.| 7.08626103486 | shared_receipt_with_poi | selected |
+| 10.| 5.94789081886 | has_enron_email_address | selected |
+| 11.| 5.23275955039 | long_term_incentive | selected |
+| 12.| 4.97016273388 | expenses | selected |
+| 13.| 4.42830698268 | from_poi_to_this_person | selected |
+| 14.| 3.48810567249 | relative_salary | selected |
+| 15.| 3.31485543549 | restricted_stock | selected |
+| 16.| 3.21442216665 | emails_from_poi_share | selected |
+| 17.| 2.61649394958 | from_this_person_to_poi | selected |
+| 18.| 1.9903678897 | director_fees | selected |
+| 19.| 1.75226840787 | total_payments | selected |
+| 20.| 1.31240379678 | relative_restricted_stock | selected |
+| 21.| 1.1988587529 | relative_deferral_payments | selected |
+| 22.| 1.15861419331 | relative_other | selected |
+| 23.| 1.05638708178 | to_messages | selected |
+| 24.| 0.716307922805 | relative_restricted_stock_deferred | selected |
+| 25.| 0.228156379744 | relative_loan_advances | discarded |
+| 26.| 0.221188632191 | deferral_payments | discarded |
+| 27.| 0.210615297495 | total_payments_to_stock_value_ratio | discarded |
+| 28.| 0.194927211265 | relative_director_fees | discarded |
+| 29.| 0.186247086247 | loan_advances | discarded |
+| 30.| 0.137096503183 | relative_deferred_income | discarded |
+| 31.| 0.131732481639 | from_messages | discarded |
+| 32.| 0.0801979619203 | relative_exercised_stock_options | discarded |
+| 33.| 0.0613680272636 | restricted_stock_deferred | discarded |
+| 34.| 0.00911576467536 | other | discarded |
+| 35.| 0.00113575916967 | relative_expenses | discarded |
 
 Principal component analysis PCA can help to reduce the dimensionality of classification problems, which speeds up training and prediction times of classificators. For some classification algorithms, it also improves the quality of the results. The `poi_id.py` has the option `--perform-PCA` which will transform the selected features and keep only the 75% with highest variance. However, in the present task I could not observe any improvements that would justify the increased preprocessing time.
 
@@ -44,7 +75,41 @@ I investigated a multitude of algorithms (see `python poi_id.py --help` on `--al
 
 A noteworthy option is `rbf_svc` which employs a Support Vector Machine with a radial basis function, because I could not find a parameter setting which would not result in a classifier that does not discard all POIs.
 
-For the most promising algorithms I performed a search for the best parameters using `GridSearchCV` and the parameter grids in the module `custom_param_grids`. I stored the best settings in the same module, so that they are loaded automatically when running `poi_id.py` without any parameters (except for `--algorithm`).
+For the most promising algorithms I performed a search for the best parameters using `GridSearchCV` and the parameter grids in the module `custom_param_grids`.
+
+For `LinearSVC` the only parameter to tune is the `C` , the penalty for error terms. I tried values `[0.1, 0.5, 1.0, 10, 100, 200]`. The other parameters conflict with each other (`loss="hinge"` does not work when `penalty="l1"` or `dual=False` and so on). The best parameter found are:
+
+```Python
+    "linearsvc": {
+        "C": 200,
+        "fit_intercept": True,
+        "max_iter": 1000,
+        "penalty": "l2",
+        "class_weight": None,
+        "multi_class": "ovr",
+        "dual": True,
+        "verbose": 0,
+        "tol": 0.0001,
+        "intercept_scaling": 1,
+        "random_state": None,
+        "loss": "hinge"
+    }
+```
+
+`GradientBoostingClassifier` is different in that it has many more parameters that can be tuned. See `custom_param_grids.py` for the different values for the individual parameters I tested. The search is time exausting because there are so many combinations and each run takes 1-2 minutes. The best setting I found is:
+
+```Python
+    "gradientboostingclassifier": {
+        "criterion": "friedman_mse",
+        "max_depth": 8,
+        "n_estimators": 100,
+        "max_features": None,
+        "subsample": 1.0,
+        "loss": "deviance"
+    }
+```
+
+I stored the best settings in the same module, so that they are loaded automatically when running `poi_id.py` without any parameters (except for `--algorithm`).
 
 ## Evaluation
 
@@ -60,11 +125,13 @@ Besides of evaluating the metrics I did some functional tests for scaling (see `
 |--|--|--|--|--|--|
 | LinearSVC (2.a) | 0.81033 | 0.35181 | 0.50150 | 0.41352 | 15s |
 | LinearSVC (2.b) | 0.80467 | 0.35257 | 0.45200 | 0.39614 | 15s |
-| GradientBoostingClassifier (3.) | 0.84353 | 0.38942 | 0.30550 | 0.34239| 90s |
+| GradientBoostingClassifier (3.a) | 0.84353 | 0.38942 | 0.30550 | 0.34239| 90s |
 
 1. Approximate time for preprocessing, training and prediction measured when running on both cores of a 2x2.53GHz notebook from 2008. Does not include time for best parameter search. Just to get an idea.
 2. Parameters for SVC: --scaling=normal, kernel="linear"
   a) C=200, dual=True, loss="hinge", penalty="l2"
   b) C=20, dual=True, loss="squared_hinge", penalty="l2"
 3. Parameters for GradientBoostingClassifier:
-  *   criterion="friedman_mse", max_depth=8, n_estimators=100, max_features=None, subsample=1.0, loss="deviance"
+  a) criterion="friedman_mse", max_depth=8, n_estimators=100, max_features=None, subsample=1.0, loss="deviance"
+
+The best solution has been found with `LinearSVC`. It has an accuracy of ~81% which means it assigns 81 out of 100 data points to the correct class. The precision is 35%, meaning that it out of all persons labelled as POI, 35% are actually POIs. The recall is 50%, which means that of all actual POIs the classifier labels every second correctly as POI.

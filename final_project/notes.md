@@ -621,7 +621,16 @@ Pipeline(memory=None,
 
 Finally tried PCA again, still not improvements.
 
-Wrote most the report.
+Wrote most of the report.
 
 ### 2018-06-15
 
+Added description of the task.
+
+Added output of feature importances and ranks during feature selection. This shows that RFECV with GradientBoostingClassifier returns a `_get_support_mask()` which discards features with high importance. Is this a bug? Prepared a forum question. Will review it tomorrow after handing in the first solution.
+
+Described tuned parameters.
+
+Explained metrics.
+
+Created literature listing.
