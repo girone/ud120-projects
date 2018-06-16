@@ -48,6 +48,30 @@ def step_name(algorithm):
     return algorithm_name
 
 
+def get_rank(input_list):
+    """Returns the list of ranks for a given list."""
+    tmp = (-np.array(input_list)).argsort()
+    ranks = np.empty_like(tmp)
+    ranks[tmp] = np.arange(len(input_list))
+    return ranks + 1
+
+
+def extract_ranking_and_scores(feature_selector):
+    name = str(feature_selector)
+    if name.startswith("SelectKBest") or name.startswith("SelectPercentile"):
+        scores = feature_selector.scores_
+    elif name.startswith("SelectFromModel"):
+        scores = feature_selector.estimator_.feature_importances_
+    elif name.startswith("RFECV"):
+        estimator_name = str(feature_selector.estimator_)
+        if estimator_name.startswith("LinearSVC"):
+            scores = feature_selector.estimator_.coef_.ravel()
+        elif estimator_name.startswith("GradientBoostingClassifier"):
+            scores = feature_selector.estimator_.feature_importances_
+    ranking = get_rank(scores)
+    return ranking, scores
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--algorithm",
@@ -151,7 +175,7 @@ for new_features in [
     data_dict = new_features.extend(data_dict)
     features_list.extend(new_features.new_feature_names())
     for name in new_features.new_feature_names():
-        print " * added feature", name
+        print "  * added feature", name
 
 for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
     # Assumes that the "total_" feature is the last in the list.
@@ -159,7 +183,7 @@ for feature_list in FEATURES_PAYMENT, FEATURES_STOCK:
         new_feature = RelativeFeature(feature, feature_list[-1])
         data_dict = new_feature.extend(data_dict)
         features_list.extend(new_feature.new_feature_names())
-        print " * added feature", features_list[-1]
+        print "  * added feature", features_list[-1]
 
 # Remove outliers automatically.
 if args.remove_outliers:
@@ -278,7 +302,7 @@ elif args.feature_selection == "RFECV":
     feature_selector = RFECV(estimator, cv=sss, scoring=scoring_function)
 elif args.feature_selection == "linear_model":
     feature_selector = SelectFromModel(
-        LinearSVC(penalty="l2", dual=True, random_state=SEED))
+        DecisionTreeClassifier(criterion="entropy", random_state=SEED))
 if feature_selector:
     print "Feature selection..."
     # NOTE(Jonas): Disabled because running RFE-CV does not make sense in the
@@ -288,9 +312,16 @@ if feature_selector:
     data = featureFormat(data_dict, features_list, sort_keys=True)
     labels, features = targetFeatureSplit(data)
     feature_selector.fit(features, labels)
-    mask = feature_selector._get_support_mask()
-    print "\n".join(
-        [" * {}: {}".format(a, b) for a, b in zip(features_list[1:], mask)])
+    ranking, scores = extract_ranking_and_scores(feature_selector)
+    mask = feature_selector.get_support()
+    print "|rank|importance|feature|selected?|"
+    print "|----|----------|-------|---------|"
+    print "\n".join([
+        "| {}.| {} | {} | {} |".format(rank, imp, feature, "selected"
+                                       if select else "discarded")
+        for rank, imp, feature, select in sorted(
+            zip(ranking, scores, features_list[1:], mask))
+    ])
     selected_features = [a for a, b in zip(features_list[1:], mask) if b]
     # Filter data_dict by changing the feature list:
     features_list = ["poi"] + selected_features
