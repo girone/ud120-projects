@@ -46,21 +46,16 @@ data_dict.pop("TOTAL", 0)
 ### can be any key in the person-level dictionary (salary, director_fees, etc.)
 feature_1 = "salary"
 feature_2 = "exercised_stock_options"
-feature_3 = "total_payments"
-
-def find_min_max_ignore_NaN(data, feature_name):
-    feature_data = numpy.array([v[feature_name] for v in data.values() if v[feature_name] != "NaN"])
-    return feature_data.min(), feature_data.max()
-
-print("Feature ranges for feature-scaling (next lesson):")
-print(feature_2, "min, max:", find_min_max_ignore_NaN(data_dict, feature_2))
-print(feature_1, "min, max:", find_min_max_ignore_NaN(data_dict, feature_1))
-print(feature_3, "min, max:", find_min_max_ignore_NaN(data_dict, feature_3))
-
+feature_3 = "from_messages"
 poi  = "poi"
 features_list = [poi, feature_1, feature_2, feature_3]
 data = featureFormat(data_dict, features_list )
 poi, finance_features = targetFeatureSplit( data )
+
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler()
+scaler.fit_transform(data)
+print "Scaled:", scaler.transform(numpy.array([[0, 200000, 1000000, 0]]))  # the 0s are dummies, we care only for feature 1 and 2
 
 
 ### in the "clustering with 3 features" part of the mini-project,

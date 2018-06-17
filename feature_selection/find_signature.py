@@ -38,6 +38,16 @@ labels_train   = labels_train[:150]
 
 
 ### your code goes here
+from sklearn.tree import DecisionTreeClassifier
+clf = DecisionTreeClassifier()
+clf.fit(features_train, labels_train)
 
+from sklearn.metrics import accuracy_score
+labels_predict = clf.predict(features_test)
+print accuracy_score(labels_test, labels_predict)
 
-
+# Detect most important feature
+import numpy as np
+print [fi for fi in clf.feature_importances_ if fi >= 0.2]
+print "max:", max(clf.feature_importances_)
+print "argmax:", np.argmax(clf.feature_importances_), vectorizer.get_feature_names()[np.argmax(clf.feature_importances_)]
