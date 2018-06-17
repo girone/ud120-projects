@@ -8,12 +8,12 @@ def parseOutText(f):
         metadata block at the top
         (in Part 2, you will also add stemming capabilities)
         and return a string that contains all the words
-        in the email (space-separated) 
-        
+        in the email (space-separated)
+
         example use case:
         f = open("email_file_name.txt", "r")
         text = parseOutText(f)
-        
+
         """
 
 
@@ -51,4 +51,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
